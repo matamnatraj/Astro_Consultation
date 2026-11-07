@@ -68,7 +68,7 @@ export async function seed() {
       const a = await t.one(
         `INSERT INTO astrologer_profiles (user_id, display_name, bio, experience_years, languages, specialties, services, modes, chat_rate_paise,
            voice_rate_paise, verification_status, verified_at, is_online, payout_details)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'{chat,voice}',$8,$9,'approved',now(),true,$10) RETURNING astrologer_id`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'{chat,voice}',$8,$9,'approved',now(),false,$10) RETURNING astrologer_id`,
         [u.user_id, name, bio, exp, langs, specs, ['Birth chart reading', 'Dasha analysis', 'Question (prashna)'], rate, Math.round(rate * 1.3),
          { accountHolder: name, accountNumber: '123456789012', ifsc: 'HDFC0001234', verified: true }],
       );

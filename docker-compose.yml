@@ -1,0 +1,20 @@
+# Local stack: PostgreSQL + API. Run the three web apps with `npm run dev:*`.
+services:
+  db:
+    image: postgres:16
+    environment: { POSTGRES_USER: astro, POSTGRES_PASSWORD: astro, POSTGRES_DB: astro }
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U astro"], interval: 5s, retries: 10 }
+  api:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci --workspace server && npm run seed -w server && npm start -w server"
+    environment:
+      DATABASE_URL: postgres://astro:astro@db:5432/astro
+      PORT: 4000
+    ports: ["4000:4000"]
+    volumes: [".:/app"]
+    depends_on: { db: { condition: service_healthy } }
+volumes:
+  pgdata:

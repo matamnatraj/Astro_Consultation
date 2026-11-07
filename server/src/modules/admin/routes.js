@@ -29,7 +29,7 @@ r.get('/dashboard', perm('dashboard.view'), async (_req, res) => {
     (SELECT count(*) FROM user_accounts WHERE role = 'customer' AND status = 'active')::int AS active_customers,
     (SELECT count(*) FROM user_accounts WHERE role = 'customer' AND created_at > now() - interval '7 days')::int AS new_customers_7d,
     (SELECT count(*) FROM astrologer_profiles WHERE verification_status = 'approved')::int AS approved_astrologers,
-    (SELECT count(*) FROM astrologer_profiles WHERE is_online)::int AS online_astrologers,
+    (SELECT count(*) FROM astrologer_profiles WHERE is_online AND verification_status = 'approved')::int AS online_astrologers,
     (SELECT count(*) FROM astrologer_profiles WHERE verification_status = 'submitted')::int AS pending_verifications,
     (SELECT count(*) FROM support_tickets WHERE status IN ('open','assigned','escalated'))::int AS open_tickets`);
   const alerts = [];
@@ -39,12 +39,12 @@ r.get('/dashboard', perm('dashboard.view'), async (_req, res) => {
     (SELECT count(*) FROM payment_webhook_events WHERE processed_at IS NULL AND received_at < now() - interval '5 minutes')::int AS stuck_webhooks,
     (SELECT count(*) FROM consultations WHERE status = 'expired' AND updated_at > now() - interval '24 hours')::int AS expired_requests,
     (SELECT count(*) FROM payouts WHERE status = 'failed')::int AS failed_payouts`);
-  if (a.failed_payments) alerts.push({ level: 'warning', text: `${a.failed_payments} failed payments in the last 24h` });
-  if (a.sla_breached) alerts.push({ level: 'critical', text: `${a.sla_breached} support tickets past SLA` });
+  if (a.failed_payments) alerts.push({ level: 'warning', text: `${a.failed_payments} failed payment(s) in the last 24h` });
+  if (a.sla_breached) alerts.push({ level: 'critical', text: `${a.sla_breached} support ticket(s) past SLA` });
   if (a.stuck_webhooks) alerts.push({ level: 'critical', text: `${a.stuck_webhooks} payment webhooks not processed` });
   if (a.expired_requests) alerts.push({ level: 'info', text: `${a.expired_requests} consultation requests expired without response (24h)` });
   if (a.failed_payouts) alerts.push({ level: 'warning', text: `${a.failed_payouts} payouts failed` });
-  if (kpis.pending_verifications) alerts.push({ level: 'info', text: `${kpis.pending_verifications} astrologers awaiting verification` });
+  if (kpis.pending_verifications) alerts.push({ level: 'info', text: `${kpis.pending_verifications} astrologer(s) awaiting verification` });
   const trend = await many(`SELECT to_char(d, 'YYYY-MM-DD') AS day,
       (SELECT count(*) FROM bookings b WHERE b.created_at::date = d AND b.status <> 'pending_payment')::int AS bookings,
       (SELECT COALESCE(sum(final_amount_paise),0) FROM consultations c WHERE c.ended_at::date = d AND c.status = 'completed')::bigint AS gross
