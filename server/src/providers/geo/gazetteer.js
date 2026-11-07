@@ -1,0 +1,85 @@
+// Built-in place resolver. A small curated gazetteer so birthplaces can be
+// resolved offline; swap for a geocoding provider (behind the same interface)
+// for full coverage. Users must confirm the resolved coordinates and time zone.
+const PLACES = [
+  ['Mumbai', 'Maharashtra', 'India', 19.076, 72.8777, 'Asia/Kolkata'],
+  ['Delhi', 'Delhi', 'India', 28.6139, 77.209, 'Asia/Kolkata'],
+  ['New Delhi', 'Delhi', 'India', 28.6139, 77.209, 'Asia/Kolkata'],
+  ['Bengaluru', 'Karnataka', 'India', 12.9716, 77.5946, 'Asia/Kolkata'],
+  ['Hyderabad', 'Telangana', 'India', 17.385, 78.4867, 'Asia/Kolkata'],
+  ['Chennai', 'Tamil Nadu', 'India', 13.0827, 80.2707, 'Asia/Kolkata'],
+  ['Kolkata', 'West Bengal', 'India', 22.5726, 88.3639, 'Asia/Kolkata'],
+  ['Pune', 'Maharashtra', 'India', 18.5204, 73.8567, 'Asia/Kolkata'],
+  ['Ahmedabad', 'Gujarat', 'India', 23.0225, 72.5714, 'Asia/Kolkata'],
+  ['Jaipur', 'Rajasthan', 'India', 26.9124, 75.7873, 'Asia/Kolkata'],
+  ['Lucknow', 'Uttar Pradesh', 'India', 26.8467, 80.9462, 'Asia/Kolkata'],
+  ['Kanpur', 'Uttar Pradesh', 'India', 26.4499, 80.3319, 'Asia/Kolkata'],
+  ['Varanasi', 'Uttar Pradesh', 'India', 25.3176, 82.9739, 'Asia/Kolkata'],
+  ['Patna', 'Bihar', 'India', 25.5941, 85.1376, 'Asia/Kolkata'],
+  ['Bhopal', 'Madhya Pradesh', 'India', 23.2599, 77.4126, 'Asia/Kolkata'],
+  ['Indore', 'Madhya Pradesh', 'India', 22.7196, 75.8577, 'Asia/Kolkata'],
+  ['Nagpur', 'Maharashtra', 'India', 21.1458, 79.0882, 'Asia/Kolkata'],
+  ['Surat', 'Gujarat', 'India', 21.1702, 72.8311, 'Asia/Kolkata'],
+  ['Vadodara', 'Gujarat', 'India', 22.3072, 73.1812, 'Asia/Kolkata'],
+  ['Chandigarh', 'Chandigarh', 'India', 30.7333, 76.7794, 'Asia/Kolkata'],
+  ['Amritsar', 'Punjab', 'India', 31.634, 74.8723, 'Asia/Kolkata'],
+  ['Ludhiana', 'Punjab', 'India', 30.901, 75.8573, 'Asia/Kolkata'],
+  ['Dehradun', 'Uttarakhand', 'India', 30.3165, 78.0322, 'Asia/Kolkata'],
+  ['Haridwar', 'Uttarakhand', 'India', 29.9457, 78.1642, 'Asia/Kolkata'],
+  ['Srinagar', 'Jammu and Kashmir', 'India', 34.0837, 74.7973, 'Asia/Kolkata'],
+  ['Jammu', 'Jammu and Kashmir', 'India', 32.7266, 74.857, 'Asia/Kolkata'],
+  ['Guwahati', 'Assam', 'India', 26.1445, 91.7362, 'Asia/Kolkata'],
+  ['Bhubaneswar', 'Odisha', 'India', 20.2961, 85.8245, 'Asia/Kolkata'],
+  ['Puri', 'Odisha', 'India', 19.8135, 85.8312, 'Asia/Kolkata'],
+  ['Ranchi', 'Jharkhand', 'India', 23.3441, 85.3096, 'Asia/Kolkata'],
+  ['Raipur', 'Chhattisgarh', 'India', 21.2514, 81.6296, 'Asia/Kolkata'],
+  ['Visakhapatnam', 'Andhra Pradesh', 'India', 17.6868, 83.2185, 'Asia/Kolkata'],
+  ['Vijayawada', 'Andhra Pradesh', 'India', 16.5062, 80.648, 'Asia/Kolkata'],
+  ['Tirupati', 'Andhra Pradesh', 'India', 13.6288, 79.4192, 'Asia/Kolkata'],
+  ['Kochi', 'Kerala', 'India', 9.9312, 76.2673, 'Asia/Kolkata'],
+  ['Thiruvananthapuram', 'Kerala', 'India', 8.5241, 76.9366, 'Asia/Kolkata'],
+  ['Kozhikode', 'Kerala', 'India', 11.2588, 75.7804, 'Asia/Kolkata'],
+  ['Coimbatore', 'Tamil Nadu', 'India', 11.0168, 76.9558, 'Asia/Kolkata'],
+  ['Madurai', 'Tamil Nadu', 'India', 9.9252, 78.1198, 'Asia/Kolkata'],
+  ['Tiruchirappalli', 'Tamil Nadu', 'India', 10.7905, 78.7047, 'Asia/Kolkata'],
+  ['Mysuru', 'Karnataka', 'India', 12.2958, 76.6394, 'Asia/Kolkata'],
+  ['Mangaluru', 'Karnataka', 'India', 12.9141, 74.856, 'Asia/Kolkata'],
+  ['Udupi', 'Karnataka', 'India', 13.3409, 74.7421, 'Asia/Kolkata'],
+  ['Panaji', 'Goa', 'India', 15.4909, 73.8278, 'Asia/Kolkata'],
+  ['Nashik', 'Maharashtra', 'India', 19.9975, 73.7898, 'Asia/Kolkata'],
+  ['Aurangabad', 'Maharashtra', 'India', 19.8762, 75.3433, 'Asia/Kolkata'],
+  ['Ujjain', 'Madhya Pradesh', 'India', 23.1765, 75.7885, 'Asia/Kolkata'],
+  ['Udaipur', 'Rajasthan', 'India', 24.5854, 73.7125, 'Asia/Kolkata'],
+  ['Jodhpur', 'Rajasthan', 'India', 26.2389, 73.0243, 'Asia/Kolkata'],
+  ['Agra', 'Uttar Pradesh', 'India', 27.1767, 78.0081, 'Asia/Kolkata'],
+  ['Prayagraj', 'Uttar Pradesh', 'India', 25.4358, 81.8463, 'Asia/Kolkata'],
+  ['Mathura', 'Uttar Pradesh', 'India', 27.4924, 77.6737, 'Asia/Kolkata'],
+  ['Shimla', 'Himachal Pradesh', 'India', 31.1048, 77.1734, 'Asia/Kolkata'],
+  ['Kathmandu', '', 'Nepal', 27.7172, 85.324, 'Asia/Kathmandu'],
+  ['Colombo', '', 'Sri Lanka', 6.9271, 79.8612, 'Asia/Colombo'],
+  ['Dhaka', '', 'Bangladesh', 23.8103, 90.4125, 'Asia/Dhaka'],
+  ['Karachi', 'Sindh', 'Pakistan', 24.8607, 67.0011, 'Asia/Karachi'],
+  ['Lahore', 'Punjab', 'Pakistan', 31.5204, 74.3587, 'Asia/Karachi'],
+  ['Dubai', '', 'United Arab Emirates', 25.2048, 55.2708, 'Asia/Dubai'],
+  ['Singapore', '', 'Singapore', 1.3521, 103.8198, 'Asia/Singapore'],
+  ['London', 'England', 'United Kingdom', 51.5074, -0.1278, 'Europe/London'],
+  ['New York', 'New York', 'United States', 40.7128, -74.006, 'America/New_York'],
+  ['San Francisco', 'California', 'United States', 37.7749, -122.4194, 'America/Los_Angeles'],
+  ['Los Angeles', 'California', 'United States', 34.0522, -118.2437, 'America/Los_Angeles'],
+  ['Chicago', 'Illinois', 'United States', 41.8781, -87.6298, 'America/Chicago'],
+  ['Toronto', 'Ontario', 'Canada', 43.6532, -79.3832, 'America/Toronto'],
+  ['Sydney', 'New South Wales', 'Australia', -33.8688, 151.2093, 'Australia/Sydney'],
+  ['Melbourne', 'Victoria', 'Australia', -37.8136, 144.9631, 'Australia/Melbourne'],
+];
+
+export function searchPlaces(q, limit = 8) {
+  const s = q.trim().toLowerCase();
+  if (s.length < 2) return [];
+  return PLACES
+    .filter(([name, region, country]) => `${name} ${region} ${country}`.toLowerCase().includes(s))
+    .sort((a, b) => (a[0].toLowerCase().startsWith(s) ? -1 : 0) - (b[0].toLowerCase().startsWith(s) ? -1 : 0))
+    .slice(0, limit)
+    .map(([name, region, country, latitude, longitude, tzName]) => ({
+      name, region, country, label: [name, region, country].filter(Boolean).join(', '), latitude, longitude, tzName,
+    }));
+}
