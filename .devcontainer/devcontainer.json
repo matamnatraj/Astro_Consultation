@@ -1,0 +1,16 @@
+{
+  "name": "Astrology Consultation Platform",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "forwardPorts": [5173, 5174, 5175],
+  "portsAttributes": {
+    "5173": { "label": "Customer app", "onAutoForward": "openBrowser" },
+    "5174": { "label": "Astrologer app" },
+    "5175": { "label": "Admin console" },
+    "4000": { "label": "API", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "npm install && npm run db:seed",
+  "postAttachCommand": "npm run dev:all",
+  "customizations": { "codespaces": { "openFiles": ["README.md"] } }
+}

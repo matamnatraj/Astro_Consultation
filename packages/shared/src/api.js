@@ -8,7 +8,9 @@ export class ApiError extends Error {
   }
 }
 
-export const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:4000';
+// Empty = same origin: each app's dev/preview server proxies /v1 to the API, so the
+// apps work from any device (cloud preview, Codespaces, phone) without exposing :4000.
+export const API_URL = import.meta.env?.VITE_API_URL || '';
 
 function store(key) {
   const read = () => { try { return JSON.parse(localStorage.getItem(key)) || null; } catch { return null; } };

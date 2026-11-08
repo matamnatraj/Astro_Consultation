@@ -3,7 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "description": "Astrology consultation platform: customer app, astrologer app, admin web and shared backend",
-  "workspaces": ["server", "packages/*", "apps/*"],
+  "workspaces": [
+    "server",
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "db:migrate": "npm run migrate -w server",
     "db:seed": "npm run seed -w server",
@@ -12,7 +16,10 @@
     "dev:astrologer": "npm run dev -w @astro/astrologer",
     "dev:admin": "npm run dev -w @astro/admin",
     "build": "npm run build -w @astro/customer && npm run build -w @astro/astrologer && npm run build -w @astro/admin",
-    "test": "npm test -w server"
+    "test": "npm test -w server",
+    "dev:all": "node scripts/dev-all.mjs"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  }
 }

@@ -1,0 +1,15 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:22
+    volumes: ["../..:/workspaces:cached"]
+    command: sleep infinity
+    network_mode: service:db   # lets the app reach PostgreSQL on localhost:5432
+    environment:
+      DATABASE_URL: postgres://astro:astro@localhost:5432/astro
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment: { POSTGRES_USER: astro, POSTGRES_PASSWORD: astro, POSTGRES_DB: astro }
+    volumes: [pgdata:/var/lib/postgresql/data]
+volumes:
+  pgdata:

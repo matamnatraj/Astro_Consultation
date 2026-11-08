@@ -22,7 +22,8 @@ export function createRealtime(api) {
     if (!token) return;
     closedByUser = false;
     setStatus('connecting');
-    ws = new WebSocket(`${API_URL.replace(/^http/, 'ws')}/v1/realtime?token=${encodeURIComponent(token)}`);
+    const wsBase = API_URL ? API_URL.replace(/^http/, 'ws') : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
+    ws = new WebSocket(`${wsBase}/v1/realtime?token=${encodeURIComponent(token)}`);
     ws.onopen = () => {
       attempts = 0;
       setStatus('online');

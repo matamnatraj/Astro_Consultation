@@ -21,7 +21,8 @@ export const config = {
   // 32-byte key (hex) used for encrypting documents at rest and signing file URLs
   storageKeyHex: required('STORAGE_KEY_HEX', 'a'.repeat(64)),
   storageDir: env.STORAGE_DIR || new URL('../storage/', import.meta.url).pathname,
-  publicApiUrl: env.PUBLIC_API_URL || `http://localhost:${env.PORT || 4000}`,
+  // Empty = links (checkout, signed files) are relative and resolve through the app's proxy.
+  publicApiUrl: env.PUBLIC_API_URL ?? '',
   corsOrigins: (env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:5174,http://localhost:5175').split(','),
   otp: {
     ttlSec: 300,
