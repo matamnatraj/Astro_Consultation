@@ -362,3 +362,30 @@ test('assistant: discloses AI, uses live data, refuses predictions, hands off to
   const ho = await api('POST', '/v1/assistant/handoff', { token: ctx.customer, body: { summary: 'Need help with a refund', shareTranscript: true, transcript: [{ from: 'user', text: 'refund?' }], category: 'refund' } });
   assert.equal(ho.status, 201);
 });
+
+test('mobile: device registration for push, app-scheme payment return', async () => {
+  const bad = await api('POST', '/v1/devices', { token: ctx.customer, body: { token: 'not-a-token', platform: 'android', app: 'customer' } });
+  assert.equal(bad.status, 400);
+  const ok = await api('POST', '/v1/devices', { token: ctx.customer, body: { token: 'ExponentPushToken[abc123]', platform: 'android', app: 'customer' } });
+  assert.equal(ok.status, 201);
+  const again = await api('POST', '/v1/devices', { token: ctx.customer, body: { token: 'ExponentPushToken[abc123]', platform: 'ios', app: 'customer' } });
+  assert.equal(again.status, 201);
+  const rows = await query(`SELECT platform FROM device_tokens WHERE token = 'ExponentPushToken[abc123]'`);
+  assert.equal(rows.rows[0].platform, 'ios');
+
+  const a = await api('GET', `/v1/astrologers/${ctx.astrologerId}`, { token: ctx.customer });
+  const slot = a.data.slots.find((s) => new Date(s.startAt) - Date.now() > 3 * 3600_000 && s.slotId);
+  const book = await api('POST', '/v1/bookings', { token: ctx.customer, body: {
+    astrologerId: ctx.astrologerId, birthProfileId: ctx.birthProfileId, mode: 'chat', bookingType: 'scheduled', slotId: a.data.slots.at(-1).slotId,
+    durationMinutes: 15, acceptedCancellationPolicyVersion: 1, idempotencyKey: 'test-mobile-0001',
+  } });
+  assert.equal(book.status, 201, JSON.stringify(book.data));
+  const co = await api('POST', '/v1/payments/checkout', { token: ctx.customer, body: { bookingId: book.data.bookingId, returnUrl: 'astrocustomer://payment-result' } });
+  const res = await fetch(`${base}/mockpay/checkout/${co.data.orderId}/complete`, {
+    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: `outcome=success&returnUrl=${encodeURIComponent('astrocustomer://payment-result')}`, redirect: 'manual',
+  });
+  assert.equal(res.status, 303);
+  assert.equal(res.headers.get('location'), 'astrocustomer://payment-result?payment=success');
+  assert.ok(slot);
+});

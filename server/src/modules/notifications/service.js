@@ -1,12 +1,13 @@
 import { db } from '../../lib/db.js';
 import { publishToUser } from '../../realtime/hub.js';
+import { sendPush } from '../../providers/push/expo.js';
 
 // Channel adapters. In production wire these to push (FCM/APNs), email and SMS
 // providers. Push previews deliberately exclude birth details and message
 // contents (DPR §10).
 const channelAdapters = {
   in_app: async () => 'delivered',
-  push: async (n) => { log('push', n); return 'sent'; },
+  push: async (n) => { log('push', n); return sendPush(n); },
   email: async (n) => { log('email', n); return 'sent'; },
   sms: async (n) => { log('sms', n); return 'sent'; },
 };

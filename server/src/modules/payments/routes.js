@@ -156,7 +156,8 @@ mockpayRouter.post('/checkout/:orderId/complete', express.urlencoded({ extended:
   // The gateway calls our webhook server-to-server with an HMAC signature.
   await handleWebhook(raw, mockpay.signWebhook(raw));
   const ret = String(req.body.returnUrl || '');
-  if (/^https?:\/\//.test(ret)) {
+  // Web apps return over http(s); the mobile apps return through their registered URL scheme.
+  if (/^(https?|astrocustomer|exp):\/\//.test(ret)) {
     const u = new URL(ret);
     u.searchParams.set('payment', outcome);
     return res.redirect(303, u.toString());

@@ -12,6 +12,7 @@ import bookingRoutes from './modules/bookings/routes.js';
 import consultationRoutes from './modules/consultations/routes.js';
 import paymentRoutes, { webhookRouter, mockpayRouter } from './modules/payments/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
+import deviceRoutes from './modules/notifications/devices.js';
 import supportRoutes from './modules/support/routes.js';
 import assistantRoutes from './modules/assistant/routes.js';
 import adminRoutes from './modules/admin/routes.js';
@@ -48,6 +49,7 @@ export function createApp() {
   v1.use('/consultations', consultationRoutes);
   v1.use('/payments', paymentRoutes);
   v1.use('/notifications', notificationRoutes);
+  v1.use('/devices', deviceRoutes);
   v1.use('/support', supportRoutes);
   v1.use('/assistant', assistantRoutes);
   v1.use('/admin', adminRoutes);

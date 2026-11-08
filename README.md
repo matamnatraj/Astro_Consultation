@@ -9,6 +9,12 @@ A working MVP of everything in the *Astrology Consultation Platform — Detailed
 | Astrologer app (responsive web) | `apps/astrologer` | http://localhost:5174 | Astrologers |
 | Admin web console | `apps/admin` | http://localhost:5175 | Support, finance, content, super-admins |
 | Shared UI, API client, chart renderer, chat | `packages/shared` | — | — |
+| **Customer mobile app** (Android + iOS) | `mobile/apps/customer` | Expo Go / store builds | Customers |
+| **Astrologer mobile app** (Android + iOS) | `mobile/apps/astrologer` | Expo Go / store builds | Astrologers |
+
+## Mobile apps (Play Store & App Store)
+
+Native Android and iOS apps for customers and astrologers live in [`mobile/`](mobile/README.md) and are built with React Native + Expo. They use the same backend as the web apps. See [`mobile/README.md`](mobile/README.md) to run them on your phone and to publish to the stores.
 
 ## Quick start
 

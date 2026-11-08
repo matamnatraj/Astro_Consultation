@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Jyotish Partner",
+    "slug": "jyotish-partner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "astroastrologer",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.jyotishconnect.astrologer",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.jyotishconnect.astrologer",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#1D1660",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#4B3FB5"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#F6F5FB",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#12111C"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": ""
+    },
+    "description": "Astrologer workspace: consultations, client charts, availability and earnings."
+  }
+}
