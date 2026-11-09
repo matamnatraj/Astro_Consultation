@@ -52,8 +52,10 @@ if (apiUrl) {
 const appDir = path.join(root, 'apps', app);
 const who = spawnSync('npx', ['expo', 'whoami'], { cwd: appDir, encoding: 'utf8', shell: process.platform === 'win32' });
 if (who.status !== 0 || /not logged in/i.test(`${who.stdout}${who.stderr}`)) {
-  say('Log in to your Expo account (free — create one at https://expo.dev/signup if you don\'t have it):');
-  const login = spawnSync('npx', ['expo', 'login'], { cwd: appDir, stdio: 'inherit', shell: process.platform === 'win32' });
+  say('Log in to your Expo account (free — create one at https://expo.dev/signup if you don\'t have it).');
+  console.log('   Enter your Expo username, then your password (the password stays invisible while typing).');
+  // --no-browser: browser login redirects to localhost, which is unreachable from a Codespace.
+  const login = spawnSync('npx', ['expo', 'login', '--no-browser'], { cwd: appDir, stdio: 'inherit', shell: process.platform === 'win32' });
   if (login.status !== 0) { console.log('\nLogin did not complete. Run this command again to retry.'); process.exit(1); }
 } else {
   say(`Logged in to Expo as ${who.stdout.trim()} ✓`);
