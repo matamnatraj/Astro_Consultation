@@ -19,29 +19,24 @@ Native mobile apps for the Astrology Consultation Platform, built with **React N
 ## Run on your phone (development)
 
 1. Install **Expo Go** from the Play Store or App Store.
-2. Start the backend (`npm run dev:server` in the repository root) so it's reachable from your phone.
-3. In this folder:
+2. Open the project in **GitHub Codespaces** (or on a computer) and make sure the backend is running. In Codespaces it starts automatically; otherwise run `npm run dev:all` in the repository root.
+3. In a terminal, go to the mobile folder:
 
    ```bash
-   npm install
+   cd mobile
    ```
+
+4. Start the customer app (or the astrologer app with `npm run phone:astrologer`):
 
    ```bash
-   npm run customer      # or: npm run astrologer
+   npm run phone:customer
    ```
 
-4. Scan the QR code with your phone's camera (iOS) or the Expo Go app (Android).
+5. Open the app on your phone:
+   - If the terminal is on another screen, scan the QR code with Expo Go (Android) or the Camera app (iPhone).
+   - If the terminal is on the same phone, copy the `exp://…` link shown under **OPEN ON YOUR PHONE**. In Expo Go, tap **Enter URL manually** and paste it.
 
-When the phone and computer are on the same Wi-Fi, the app finds the API automatically (`http://<your computer's IP>:4000`). Elsewhere, for example in GitHub Codespaces:
-
-- make port 4000 public in the **Ports** tab;
-- start with the API address and a tunnel:
-
-  ```bash
-  EXPO_PUBLIC_API_URL=https://<your-codespace>-4000.app.github.dev npx expo start --tunnel
-  ```
-
-  Run this inside `apps/customer` or `apps/astrologer`.
+The launcher installs dependencies on first run and starts a public tunnel so your phone can reach the app from anywhere. In Codespaces, it also makes the API (port 4000) public and points the app at it automatically.
 
 Demo logins are the same as the web apps: customer `+919900000001`, astrologer `+919800000001`. In development the one-time code is filled in automatically.
 

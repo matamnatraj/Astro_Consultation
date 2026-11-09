@@ -3,9 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "description": "Native Android/iOS apps (Expo / React Native) for customers and astrologers",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "customer": "npm run start -w @astro/customer-mobile",
-    "astrologer": "npm run start -w @astro/astrologer-mobile"
+    "astrologer": "npm run start -w @astro/astrologer-mobile",
+    "phone:customer": "node scripts/phone.mjs customer",
+    "phone:astrologer": "node scripts/phone.mjs astrologer"
   }
 }
