@@ -32,22 +32,37 @@ if (!apiUrl && CODESPACE_NAME && domain) {
 }
 if (apiUrl) {
   try {
-    const res = await fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // redirect: 'manual' — a private Codespaces port redirects to GitHub sign-in, which a phone can't pass.
+    const res = await fetch(`${apiUrl}/health`, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
+    const body = res.ok ? await res.json().catch(() => null) : null;
+    if (body?.status !== 'ok') throw new Error(res.status >= 300 && res.status < 400 ? 'port 4000 is still Private' : `HTTP ${res.status}`);
     say(`API reachable at ${apiUrl} ✓`);
   } catch (e) {
-    console.log(`\n⚠  The API at ${apiUrl} isn't answering (${e.message}).`);
-    console.log('   Make sure the server is running: open another terminal and run  npm run dev:all  in the repository root.');
-    console.log('   In Codespaces, also check port 4000 is Public in the PORTS tab.\n');
+    console.log(`\n\x1b[1m\x1b[41m\x1b[37m  ACTION NEEDED  \x1b[0m  The API isn't reachable from your phone (${e.message}).`);
+    if (CODESPACE_NAME) console.log('   Open the PORTS tab → right-click port 4000 → Port Visibility → Public, then run this command again.');
+    else console.log('   Make sure the server is running: run  npm run dev:all  in the repository root.');
+    console.log('');
+    process.exit(1);
   }
 } else {
   say('Using this computer\'s address for the API (phone and computer must be on the same Wi-Fi).');
 }
 
-// 3. Start Expo with a tunnel and surface the Expo Go link.
+// 3. The Expo tunnel requires a (free) Expo account — log in here if needed.
+const appDir = path.join(root, 'apps', app);
+const who = spawnSync('npx', ['expo', 'whoami'], { cwd: appDir, encoding: 'utf8', shell: process.platform === 'win32' });
+if (who.status !== 0 || /not logged in/i.test(`${who.stdout}${who.stderr}`)) {
+  say('Log in to your Expo account (free — create one at https://expo.dev/signup if you don\'t have it):');
+  const login = spawnSync('npx', ['expo', 'login'], { cwd: appDir, stdio: 'inherit', shell: process.platform === 'win32' });
+  if (login.status !== 0) { console.log('\nLogin did not complete. Run this command again to retry.'); process.exit(1); }
+} else {
+  say(`Logged in to Expo as ${who.stdout.trim()} ✓`);
+}
+
+// 4. Start Expo with a tunnel and surface the Expo Go link.
 say(`Starting the ${app === 'customer' ? 'Jyotish Connect (customer)' : 'Jyotish Partner (astrologer)'} app… this takes about a minute.`);
 const child = spawn('npx', ['expo', 'start', '--tunnel', '--go'], {
-  cwd: path.join(root, 'apps', app),
+  cwd: appDir,
   env: { ...process.env, ...(apiUrl ? { EXPO_PUBLIC_API_URL: apiUrl } : {}) },
   stdio: ['inherit', 'pipe', 'inherit'],
   shell: process.platform === 'win32',
