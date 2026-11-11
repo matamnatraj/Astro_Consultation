@@ -63,25 +63,19 @@ if (who.status !== 0 || /not logged in/i.test(`${who.stdout}${who.stderr}`)) {
 
 // 4. Start Expo with a tunnel and surface the Expo Go link.
 say(`Starting the ${app === 'customer' ? 'Jyotish Connect (customer)' : 'Jyotish Partner (astrologer)'} app… this takes about a minute.`);
+console.log(`
+\x1b[1m\x1b[42m\x1b[30m  WHAT TO DO NEXT  \x1b[0m
+  In about a minute a \x1b[1mQR code\x1b[0m and a line \x1b[1m"Metro waiting on exp://…"\x1b[0m appear below.
+  • Scan the QR code: Expo Go → "Scan QR code" (Android) or the Camera app (iPhone).
+  • Or copy the exp://… address, then in Expo Go tap "Enter URL manually" and paste it.
+  Tip: make the terminal panel bigger (drag its top edge up) so the whole QR code fits.
+`);
+// Expo must write straight to the terminal: it only draws the QR code in an interactive terminal.
 const child = spawn('npx', ['expo', 'start', '--tunnel', '--go'], {
   cwd: appDir,
   env: { ...process.env, ...(apiUrl ? { EXPO_PUBLIC_API_URL: apiUrl } : {}) },
-  stdio: ['inherit', 'pipe', 'inherit'],
+  stdio: 'inherit',
   shell: process.platform === 'win32',
-});
-let shown = false;
-child.stdout.on('data', (buf) => {
-  const text = buf.toString();
-  process.stdout.write(text);
-  const m = !shown && text.match(/exp:\/\/[^\s\x1b]+/);
-  if (m) {
-    shown = true;
-    const httpsLink = m[0].replace(/^exp:\/\//, 'https://');
-    console.log('\n\x1b[1m\x1b[42m\x1b[30m  OPEN ON YOUR PHONE  \x1b[0m');
-    console.log(`  In Expo Go: tap "Enter URL manually" and paste:  \x1b[1m${m[0]}\x1b[0m`);
-    console.log(`  Or scan the QR code above with Expo Go (Android) / the Camera app (iPhone).`);
-    console.log(`  (Browser link that also opens Expo Go: ${httpsLink})\n`);
-  }
 });
 child.on('exit', (code) => process.exit(code ?? 0));
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => child.kill(sig));
