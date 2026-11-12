@@ -8,6 +8,7 @@ import { astrovedas as c } from '../../lib/theme.js';
 import { useWallet, useAppConfig } from '../../lib/stores.js';
 import { Txt, AstroAvatar, GradientButton, ChipToggle } from '../../components/brand.js';
 import { BackButton } from '../../components/Header.js';
+import { useT } from '../../lib/i18n.js';
 
 const DURATIONS = [5, 10, 15, 20, 30];
 
@@ -35,6 +36,7 @@ const Row = ({ label, value, bold, color, icon }) => (
 export default function ConsultSetup() {
   const { astrologerId, mode: initialMode } = useLocalSearchParams();
   const { api } = useAuth();
+  const t = useT();
   const cfg = useAppConfig();
   const [balance, refreshWallet] = useWallet();
   const a = useAsync(() => api.get(`/astrologers/${astrologerId}`), [astrologerId]);
@@ -92,23 +94,23 @@ export default function ConsultSetup() {
           <View style={{ flex: 1 }}>
             <Txt w="s" size={18} numberOfLines={1}>{x.displayName}</Txt>
             <Txt size={13} color={c.text2} numberOfLines={1}>{x.specialties.slice(0, 2).join(', ')} • {x.experienceYears}+ Yrs</Txt>
-            <Txt size={13}><Txt color={c.accent}>★ </Txt><Txt w="s" size={13}>{x.ratingCount ? x.ratingAvg.toFixed(1) : 'New'}</Txt><Txt size={13} color={c.text2}> ({x.ratingCount} reviews)</Txt></Txt>
+            <Txt size={13}><Txt color={c.accent}>★ </Txt><Txt w="s" size={13}>{x.ratingCount ? x.ratingAvg.toFixed(1) : t('common.new')}</Txt><Txt size={13} color={c.text2}> ({t('common.reviews', { n: x.ratingCount })})</Txt></Txt>
           </View>
         </View>
 
-        <Txt w="s" size={17}>Consultation Mode</Txt>
+        <Txt w="s" size={17}>{t('consult.mode')}</Txt>
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <ModeCard icon="chatbox" title="Chat" price={x.rates.chat} active={mode === 'chat'} onPress={() => setMode('chat')} />
-          <ModeCard icon="call-outline" title="Audio Call" price={x.rates.voice} active={mode === 'voice'} disabled={!callEnabled} note={!callEnabled ? 'Coming soon' : undefined} onPress={() => setMode('voice')} />
+          <ModeCard icon="chatbox" title={t('common.chat')} price={x.rates.chat} active={mode === 'chat'} onPress={() => setMode('chat')} />
+          <ModeCard icon="call-outline" title={t('consult.audio')} price={x.rates.voice} active={mode === 'voice'} disabled={!callEnabled} note={!callEnabled ? t('consult.soon') : undefined} onPress={() => setMode('voice')} />
         </View>
 
         {!canNow || x.slots.length ? (
           <View style={{ gap: 10 }}>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <ChipToggle label="Start now" icon="flash-outline" active={type === 'now'} onPress={() => (canNow ? setWhen('now') : null)} />
-              <ChipToggle label="Schedule" icon="calendar-outline" active={type === 'scheduled'} onPress={() => setWhen('scheduled')} />
+              <ChipToggle label={t('consult.now')} icon="flash-outline" active={type === 'now'} onPress={() => (canNow ? setWhen('now') : null)} />
+              <ChipToggle label={t('consult.schedule')} icon="calendar-outline" active={type === 'scheduled'} onPress={() => setWhen('scheduled')} />
             </View>
-            {type === 'now' && !canNow ? <Txt size={13} color={c.warn}>{x.displayName} is {x.isBusy ? 'in another session' : 'offline'} — pick a time below.</Txt> : null}
+            {type === 'now' && !canNow ? <Txt size={13} color={c.warn}>{t(x.isBusy ? 'consult.busyNow' : 'consult.offline', { name: x.displayName })}</Txt> : null}
             {type === 'scheduled' ? (
               x.slots.length ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -123,13 +125,13 @@ export default function ConsultSetup() {
         ) : null}
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <Txt w="s" size={17}>Select Session Duration</Txt><Txt size={13} color={c.text2}>Extendable anytime</Txt>
+          <Txt w="s" size={17}>{t('consult.duration')}</Txt><Txt size={13} color={c.text2}>{t('consult.extendable')}</Txt>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {DURATIONS.filter((d) => !slot || d <= (new Date(slot.endAt) - new Date(slot.startAt)) / 60000).slice(0, 4).map((d) => (
             <Pressable key={d} onPress={() => setDuration(d)} accessibilityRole="radio" accessibilityState={{ selected: duration === d }}
               style={{ flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 22, backgroundColor: duration === d ? c.primary : c.surface, ...(duration === d ? {} : c.shadow) }}>
-              <Txt w="m" size={15} color={duration === d ? '#fff' : c.text}>{d} min</Txt>
+              <Txt w="m" size={15} color={duration === d ? '#fff' : c.text}>{t('common.minutes', { n: d })}</Txt>
             </Pressable>
           ))}
         </View>
@@ -137,13 +139,13 @@ export default function ConsultSetup() {
         <View style={{ backgroundColor: c.surface, borderRadius: 22, padding: 18, ...c.shadow }}>
           {!q ? <Loading /> : (
             <>
-              <Row label="Rate" value={`${rupees(q.ratePaise)} / min`} />
-              <Row label="Estimated Duration" value={`${duration} minutes`} />
-              <Row label="Initial Gross Subtotal" value={rupees(q.amountPaise)} />
+              <Row label={t('consult.rate')} value={`${rupees(q.ratePaise)} / min`} />
+              <Row label={t('consult.estDuration')} value={t('consult.minutesLong', { n: duration })} />
+              <Row label={t('consult.gross')} value={rupees(q.amountPaise)} />
               {q.discountPaise ? (<><View style={{ height: 1, backgroundColor: c.border, marginVertical: 6 }} /><Row icon="gift-outline" label={q.discountLabel} value={`-${rupees(q.discountPaise)}`} color={c.pricePillText} /></>) : null}
               <View style={{ height: 1, backgroundColor: c.border, marginVertical: 6 }} />
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View><Txt w="s" size={19}>Estimated Payable</Txt><Txt size={12.5} color={c.text2}>Refundable if unused</Txt></View>
+                <View><Txt w="s" size={19}>{t('consult.payable')}</Txt><Txt size={12.5} color={c.text2}>{t('consult.refundable')}</Txt></View>
                 <Txt w="b" size={26} color={c.primary}>{rupees(payable)}</Txt>
               </View>
             </>
@@ -152,29 +154,29 @@ export default function ConsultSetup() {
 
         <View style={{ borderRadius: 22, borderWidth: 1, borderColor: '#E9D9C9', padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: '#E5F5EC', alignItems: 'center', justifyContent: 'center' }}><MCI name="wallet" size={24} color={c.ok} /></View>
-          <View style={{ flex: 1 }}><Txt size={13} color={c.text2}>{cfg.walletName} Balance</Txt><Txt w="b" size={20} color={shortfall ? c.bad : c.ok}>{rupees(wallet)}</Txt></View>
-          <Pressable onPress={() => router.push('/wallet')} accessibilityRole="button" accessibilityLabel="Add money" style={{ backgroundColor: '#F2E8DE', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 9 }}><Txt w="m">+ Add</Txt></Pressable>
+          <View style={{ flex: 1 }}><Txt size={13} color={c.text2}>{t('consult.walletBalance', { wallet: cfg.walletName })}</Txt><Txt w="b" size={20} color={shortfall ? c.bad : c.ok}>{rupees(wallet)}</Txt></View>
+          <Pressable onPress={() => router.push('/wallet')} accessibilityRole="button" accessibilityLabel="Add money" style={{ backgroundColor: '#F2E8DE', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 9 }}><Txt w="m">{t('home.add')}</Txt></Pressable>
         </View>
 
         <Pressable onPress={() => setPickBp(true)} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.surface, borderRadius: 18, padding: 14, ...c.shadow }}>
           <MCI name="dharmachakra" size={22} color={c.primary} />
           <View style={{ flex: 1 }}>
-            <Txt size={12.5} color={c.text2}>Kundli shared with the astrologer</Txt>
-            <Txt w="m">{bpRow ? `${bpRow.fullName} (${bpRow.label})` : 'Add your birth details'}</Txt>
+            <Txt size={12.5} color={c.text2}>{t('consult.kundliShared')}</Txt>
+            <Txt w="m">{bpRow ? `${bpRow.fullName} (${bpRow.label})` : t('consult.addBirth')}</Txt>
           </View>
           <Ionicons name="chevron-forward" size={18} color={c.muted} />
         </Pressable>
 
         <ErrorBox error={err} />
         <Txt size={12} color={c.muted} style={{ textAlign: 'center' }}>
-          By confirming you agree to the <Txt size={12} w="m" color={c.primary} onPress={() => setPolicyOpen(true)}>Cancellation & Refund Policy{q ? ` (v${q.cancellationPolicy.version})` : ''}</Txt>. Only minutes used are charged.
+          {t('consult.agree')} <Txt size={12} w="m" color={c.primary} onPress={() => setPolicyOpen(true)}>{t('consult.policy')}{q ? ` (v${q.cancellationPolicy.version})` : ''}</Txt>. {t('consult.onlyUsed')}
         </Txt>
       </ScrollView>
       <View style={{ paddingHorizontal: 16, paddingBottom: 10, paddingTop: 6 }}>
-        {!bp ? <GradientButton title="Add birth details" onPress={() => router.push('/birth-profile/new')} />
-          : <GradientButton icon={shortfall ? 'wallet-plus-outline' : 'message-text-outline'} title={shortfall ? `Add ${rupees(shortfall)} to Wallet` : `Confirm & ${type === 'now' ? `Start ${mode === 'voice' ? 'Call' : 'Chat'}` : 'Book Slot'}`} onPress={confirm} loading={busy} disabled={!ready} />}
+        {!bp ? <GradientButton title={t('consult.addBirth')} onPress={() => router.push('/birth-profile/new')} />
+          : <GradientButton icon={shortfall ? 'wallet-plus-outline' : 'message-text-outline'} title={shortfall ? t('consult.addToWallet', { amt: rupees(shortfall) }) : t(type === 'now' ? (mode === 'voice' ? 'consult.confirmCall' : 'consult.confirmChat') : 'consult.bookSlot')} onPress={confirm} loading={busy} disabled={!ready} />}
       </View>
-      <Sheet visible={pickBp} onClose={() => setPickBp(false)} title="Whose kundli?">
+      <Sheet visible={pickBp} onClose={() => setPickBp(false)} title={t('consult.whose')}>
         {profiles.data.map((p) => (
           <Pressable key={p.birthProfileId} onPress={() => { setBpId(p.birthProfileId); setPickBp(false); }} style={{ paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
             <View><Txt w="m">{p.fullName} <Txt size={13} color={c.muted}>({p.label})</Txt></Txt><Txt size={12.5} color={c.text2}>{p.birthDate} · {p.birthTime?.slice(0, 5) || 'time unknown'} · {p.placeName}</Txt></View>

@@ -7,12 +7,18 @@ import Svg, { Circle, Path, G, Line } from 'react-native-svg';
 import { router } from 'expo-router';
 import { rupees } from '@astro/mobile-core';
 import { astrovedas as c } from '../lib/theme.js';
+import { useT } from '../lib/i18n.js';
 
 export const F = {
   r: { fontFamily: c.fonts.regular }, m: { fontFamily: c.fonts.medium }, s: { fontFamily: c.fonts.semibold }, b: { fontFamily: c.fonts.bold },
 };
+// Poppins has Latin glyphs only. Text in Indian scripts uses the platform font (Noto on Android, system fonts on iOS) at the same weight.
+const INDIC = /[\u0900-\u0DFF]/;
+const WEIGHT = { r: '400', m: '500', s: '600', b: '700' };
+const textOf = (ch) => (typeof ch === 'string' ? ch : Array.isArray(ch) ? ch.filter((x) => typeof x === 'string').join('') : '');
+export const fontFor = (w, text) => (INDIC.test(text || '') ? { fontWeight: WEIGHT[w] } : F[w]);
 export const Txt = ({ w = 'r', size = 14, color = c.text, style, children, ...p }) => (
-  <Text style={[F[w], { fontSize: size, color, lineHeight: size * 1.4 }, style]} {...p}>{children}</Text>
+  <Text style={[fontFor(w, textOf(children)), { fontSize: size, color, lineHeight: size * 1.4 }, style]} {...p}>{children}</Text>
 );
 
 /** Brand mark: sun with rays inside a soft ring. */
@@ -60,31 +66,33 @@ export function IconButton({ name, onPress, badge, label, set = 'ion', color = c
 
 export function WalletPill({ balancePaise, onAdd, onPress }) {
   // Two sibling touch targets (balance → wallet, "+ Add" → top-up); never nested.
+  const t = useT();
   return (
     <View style={{ borderRadius: 18, ...c.shadow, shadowOpacity: 0.2 }}>
       <LinearGradient colors={['#F08A34', '#E26812']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 18, paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Wallet balance ${rupees(balancePaise ?? 0)}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}><MCI name="wallet-outline" size={20} color="#fff" /></View>
           <View>
-            <Txt size={11} color="rgba(255,255,255,0.9)">Wallet Balance</Txt>
+            <Txt size={11} color="rgba(255,255,255,0.9)">{t('home.walletBalance')}</Txt>
             <Txt w="b" size={16} color="#fff">{rupees(balancePaise ?? 0)}</Txt>
           </View>
         </Pressable>
         <Pressable onPress={onAdd} hitSlop={6} accessibilityRole="button" accessibilityLabel="Add money" style={{ backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5, marginLeft: 4 }}>
-          <Txt w="s" size={13} color={c.primary}>+ Add</Txt>
+          <Txt w="s" size={13} color={c.primary}>{t('home.add')}</Txt>
         </Pressable>
       </LinearGradient>
     </View>
   );
 }
 
-export function SearchRow({ value, onChangeText, onFilter, placeholder = 'Search astrologers, services, horoscope…', onFocus, filterCount }) {
+export function SearchRow({ value, onChangeText, onFilter, placeholder, onFocus, filterCount }) {
+  const t = useT();
   return (
     <View style={{ flexDirection: 'row', gap: 10 }}>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.surface, borderRadius: 16, borderWidth: 1, borderColor: c.border, paddingHorizontal: 14, height: 52 }}>
         <Ionicons name="search-outline" size={20} color={c.muted} />
-        <TextInput value={value} onChangeText={onChangeText} onFocus={onFocus} placeholder={placeholder} placeholderTextColor={c.muted} accessibilityLabel="Search"
-          style={[F.r, { flex: 1, fontSize: 14, color: c.text, paddingVertical: 0 }]} returnKeyType="search" />
+        <TextInput value={value} onChangeText={onChangeText} onFocus={onFocus} placeholder={placeholder || t('home.search')} placeholderTextColor={c.muted} accessibilityLabel="Search"
+          style={[fontFor('r', value || placeholder || t('home.search')), { flex: 1, fontSize: 14, color: c.text, paddingVertical: 0 }]} returnKeyType="search" />
       </View>
       {onFilter ? (
         <Pressable onPress={onFilter} accessibilityRole="button" accessibilityLabel="Filters" style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' }}>
@@ -164,10 +172,11 @@ export function CategoryTile({ icon, label, onPress, compact }) {
 }
 
 export function SectionHeader({ title, onViewAll }) {
+  const t = useT();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
       <Txt w="s" size={17}>{title}</Txt>
-      {onViewAll ? <Pressable onPress={onViewAll} hitSlop={8} accessibilityRole="link"><Txt w="m" size={13} color={c.primary}>View All →</Txt></Pressable> : null}
+      {onViewAll ? <Pressable onPress={onViewAll} hitSlop={8} accessibilityRole="link"><Txt w="m" size={13} color={c.primary}>{t('common.viewAll')}</Txt></Pressable> : null}
     </View>
   );
 }
@@ -229,6 +238,7 @@ export function SoftAction({ icon, label, onPress, disabled, filled }) {
 
 /** Full-width astrologer card (list screen). */
 export function AstrologerCard({ a, onToggleFavorite, onChat, onCall, callEnabled }) {
+  const t = useT();
   return (
     <View style={{ backgroundColor: c.surface, borderRadius: 22, padding: 16, gap: 14, ...c.shadow }}>
       <Pressable onPress={() => router.push(`/astrologer/${a.astrologerId}`)} accessibilityRole="link" accessibilityLabel={`${a.displayName} profile`} style={{ flexDirection: 'row', gap: 14 }}>
@@ -242,15 +252,15 @@ export function AstrologerCard({ a, onToggleFavorite, onChat, onCall, callEnable
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <RatingPill rating={a.ratingAvg} count={a.ratingCount} />
-              <Txt size={12.5} color={c.text2}>• {a.experienceYears} Yrs exp</Txt>
+              <Txt size={12.5} color={c.text2}>• {t('common.yrsExp', { n: a.experienceYears })}</Txt>
             </View>
             <PricePill paise={a.rates.chat} />
           </View>
         </View>
       </Pressable>
       <View style={{ flexDirection: 'row', gap: 12 }}>
-        <SoftAction icon="chatbox-outline" label={a.isBusy ? 'Busy' : 'Chat'} onPress={() => onChat(a)} disabled={a.isBusy} />
-        <SoftAction icon="call-outline" label="Call" onPress={() => onCall(a)} disabled={!callEnabled || !a.modes.includes('voice')} />
+        <SoftAction icon="chatbox-outline" label={a.isBusy ? t('common.busy') : t('common.chat')} onPress={() => onChat(a)} disabled={a.isBusy} />
+        <SoftAction icon="call-outline" label={t('common.call')} onPress={() => onCall(a)} disabled={!callEnabled || !a.modes.includes('voice')} />
       </View>
     </View>
   );
@@ -259,6 +269,7 @@ export function AstrologerCard({ a, onToggleFavorite, onChat, onCall, callEnable
 /** Compact card for horizontal "Online Astrologers" carousels. */
 export function AstrologerMiniCard({ a, onToggleFavorite, onChat }) {
   // Card body opens the profile; heart and Chat are sibling touch targets (never nested).
+  const t = useT();
   return (
     <View style={{ width: 172, backgroundColor: c.surface, borderRadius: 22, padding: 14, ...c.shadow }}>
       <Pressable onPress={() => router.push(`/astrologer/${a.astrologerId}`)} accessibilityRole="link" accessibilityLabel={`${a.displayName} profile`} style={{ alignItems: 'center', gap: 6 }}>
@@ -272,7 +283,7 @@ export function AstrologerMiniCard({ a, onToggleFavorite, onChat }) {
         <Txt w="b" size={14} color={c.pricePillText}>{rupees(a.rates.chat)}<Txt size={11} color={c.pricePillText}>/min</Txt></Txt>
         <Pressable onPress={() => onChat(a)} disabled={a.isBusy} accessibilityRole="button" accessibilityLabel={`Chat with ${a.displayName}`} hitSlop={6}
           style={{ backgroundColor: a.isBusy ? '#EADBCD' : c.primary, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 6 }}>
-          <Txt w="s" size={12.5} color="#fff">{a.isBusy ? 'Busy' : 'Chat'}</Txt>
+          <Txt w="s" size={12.5} color="#fff">{a.isBusy ? t('common.busy') : t('common.chat')}</Txt>
         </Pressable>
       </View>
     </View>
@@ -291,7 +302,8 @@ export function ChipToggle({ label, active, onPress, icon }) {
 }
 
 export function ModeTabs({ value, onChange }) {
-  const tabs = [['all', 'All', 'star-circle-outline'], ['chat', 'Chat', 'chatbox-outline'], ['voice', 'Call', 'call-outline']];
+  const t = useT();
+  const tabs = [['all', t('astro.all'), 'star-circle-outline'], ['chat', t('common.chat'), 'chatbox-outline'], ['voice', t('common.call'), 'call-outline']];
   return (
     <View style={{ flexDirection: 'row', gap: 10 }}>
       {tabs.map(([v, l, icon]) => (

@@ -69,6 +69,7 @@ export function createApi(storageKey) {
     get: (p) => request('GET', p),
     post: (p, b, o) => request('POST', p, b || {}, o),
     put: (p, b) => request('PUT', p, b),
+    patch: (p, b) => request('PATCH', p, b),
     del: (p) => request('DELETE', p),
     hasSession: async () => Boolean(await load()),
     async accessToken() {

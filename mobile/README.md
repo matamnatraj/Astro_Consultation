@@ -20,6 +20,8 @@ Native mobile apps for the Astrology Consultation Platform, built with **React N
 - **Chat:** timer and amount bar, file attachments, extending the session from the wallet, viewing your kundli mid-chat, and ending the session; then the **Rate Your Consultation** screen with tags.
 - **Wallet:** recharge packs with bonus, amount entry, gateway checkout, transaction history.
 - **Kundli:** saved charts, Create New Kundli, basic details, chart styles, planets and dasha. **Predictions:** today's transits over your chart and the current dasha.
+- **Kundli Matching:** Ashtakoota guna milan out of 36 for a boy and a girl, each from a saved kundli or entered by hand (name, date, time or "don't know", city search). Results show a score ring, the verdict, all 8 kootas, doshas (Nadi, Bhakoot, Gana), Manglik for both, and a shortcut to marriage astrologers. Matches are saved under Recent Matches.
+- **App language:** English, Hindi, Telugu, Tamil, Kannada, Marathi and Bengali. Change it from the login screen, the Home header or Profile → App language; the choice is saved to the account. Have native speakers review the translations (`src/lib/i18n.js`) before launch. Astrologer profiles, chats and the detailed astrology explanations from the server stay in English.
 - **Profile:** consultations, favourites, support, help assistant, account and privacy, sign out.
 - **Audio call:** the screen is built as designed, but switched off until a voice provider is integrated (set `ENABLED_MODES=chat,voice` on the server once it is).
 

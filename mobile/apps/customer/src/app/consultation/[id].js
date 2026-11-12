@@ -7,8 +7,9 @@ import { Ionicons, MaterialCommunityIcons as MCI } from '@expo/vector-icons';
 import { useAuth, useAsync, useConsultation, ChartView, Sheet, Loading, ErrorBox, useToast, absoluteUrl, mmss, fmtTime, rupees } from '@astro/mobile-core';
 import { astrovedas as c } from '../../lib/theme.js';
 import { useWallet, useAppConfig } from '../../lib/stores.js';
-import { F, Txt, AstroAvatar, GradientButton, ChipToggle } from '../../components/brand.js';
+import { F, fontFor, Txt, AstroAvatar, GradientButton, ChipToggle } from '../../components/brand.js';
 import { BackButton } from '../../components/Header.js';
+import { useT } from '../../lib/i18n.js';
 
 async function fileToBase64(uri) {
   const blob = await (await fetch(uri)).blob();
@@ -55,6 +56,7 @@ export default function ChatRoom() {
   const [extendMin, setExtendMin] = useState(10);
   const [busy, setBusy] = useState(null);
   const [toast, show] = useToast();
+  const t = useT();
   const listRef = useRef();
   const lastTyping = useRef(0);
   const chart = useAsync(() => api.get(`/consultations/${id}/client-chart`), [id], { refocus: false });
@@ -90,7 +92,7 @@ export default function ChatRoom() {
     catch (e) { if (e.details?.code === 'insufficient_balance') { setExtendOpen(false); router.push(`/wallet?add=${Math.ceil((e.details.requiredPaise - e.details.balancePaise) / 100)}`); } else show(e.message, 'bad'); }
     finally { setBusy(null); }
   };
-  const waiting = { requested: `Waiting for ${k.astrologer.name} to accept…`, accepted: 'Accepted — the session opens at the scheduled time.', ready: `${k.astrologer.name} will start the session shortly. Stay here.` }[k.status];
+  const waiting = { requested: t('chat.waiting', { name: k.astrologer.name }), accepted: 'Accepted — the session opens at the scheduled time.', ready: `${k.astrologer.name} will start the session shortly. Stay here.` }[k.status];
   const astroOnline = s.presence.length > 1 || live;
   const runningAmount = s.timer ? Math.max(0, s.timer.runningAmount - (k.discountPaise || 0)) : 0;
 
@@ -101,7 +103,7 @@ export default function ChatRoom() {
         <AstroAvatar name={k.astrologer.name} size={42} online={astroOnline} />
         <View style={{ flex: 1 }}>
           <Txt w="s" size={16.5} numberOfLines={1}>{k.astrologer.name}</Txt>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: astroOnline ? c.ok : c.muted }} /><Txt size={13} color={astroOnline ? c.ok : c.muted}>{s.typing ? 'typing…' : astroOnline ? 'Online' : 'Offline'}</Txt></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}><View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: astroOnline ? c.ok : c.muted }} /><Txt size={13} color={astroOnline ? c.ok : c.muted}>{s.typing ? t('chat.typing') : astroOnline ? t('common.online') : t('common.offline')}</Txt></View>
         </View>
         <Pressable onPress={() => (callEnabled ? router.push(`/call/${id}`) : show('Audio calls are coming soon.', 'info'))} hitSlop={10} accessibilityRole="button" accessibilityLabel="Call" style={{ padding: 8, opacity: callEnabled ? 1 : 0.5 }}><Ionicons name="call-outline" size={23} color={c.primary} /></Pressable>
         <Pressable onPress={() => setMenu(true)} hitSlop={10} accessibilityRole="button" accessibilityLabel="More options" style={{ padding: 8 }}><Ionicons name="ellipsis-vertical" size={22} color={c.text} /></Pressable>
@@ -123,10 +125,10 @@ export default function ChatRoom() {
               {ended ? (
                 <View style={{ backgroundColor: c.surface, borderRadius: 20, padding: 18, gap: 10, marginTop: 16, alignItems: 'center', ...c.shadow }}>
                   <MCI name="check-circle-outline" size={32} color={c.ok} />
-                  <Txt w="s" size={16}>{k.status === 'completed' ? 'Consultation completed' : `Consultation ${k.status}`}</Txt>
+                  <Txt w="s" size={16}>{k.status === 'completed' ? t('chat.completed') : `Consultation ${k.status}`}</Txt>
                   {k.status === 'completed' ? <Txt size={13.5} color={c.text2} style={{ textAlign: 'center' }}>{Math.ceil((k.billableSeconds || 0) / 60)} min · Charged {rupees(k.chargedPaise ?? k.finalAmountPaise)}{k.discountPaise ? ` (incl. ${k.discountLabel})` : ''}</Txt> : null}
                   {k.status === 'completed' && review.data && !review.data.consultation?.reviewed ? <GradientButton size="sm" title="Rate Your Consultation" onPress={() => router.push(`/rate/${id}`)} /> : null}
-                  <Txt w="m" color={c.primary} onPress={() => router.push(`/astrologer/${k.astrologer.astrologerId}`)}>Chat again with {k.astrologer.name.split(' ')[0]}</Txt>
+                  <Txt w="m" color={c.primary} onPress={() => router.push(`/astrologer/${k.astrologer.astrologerId}`)}>{t('chat.chatAgain', { name: k.astrologer.name.split(' ')[0] })}</Txt>
                 </View>
               ) : null}
             </>
@@ -135,7 +137,7 @@ export default function ChatRoom() {
         {live || k.status === 'completed' ? (
           <View style={{ marginHorizontal: 14, marginBottom: 8, borderRadius: 18, borderWidth: 1, borderColor: '#F0D9C4', backgroundColor: '#FFF8F1', paddingHorizontal: 14, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Ionicons name="time-outline" size={19} color={c.primary} />
-            <Txt w="m" size={15}>Consultation Time: <Txt w="s" size={15} color={s.timer?.remaining <= 120 && live ? c.bad : c.primary}>{mmss(s.timer?.elapsed || 0)}</Txt></Txt>
+            <Txt w="m" size={15}>{t('chat.time')} <Txt w="s" size={15} color={s.timer?.remaining <= 120 && live ? c.bad : c.primary}>{mmss(s.timer?.elapsed || 0)}</Txt></Txt>
             <View style={{ flex: 1 }} />
             <Txt w="b" size={16}>{rupees(live ? runningAmount : (k.chargedPaise ?? 0))}</Txt><Txt size={12.5} color={c.text2}> ({rupees(k.ratePaise)}/min)</Txt>
           </View>
@@ -153,9 +155,9 @@ export default function ChatRoom() {
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4ECE4', borderRadius: 26, paddingHorizontal: 16, minHeight: 50 }}>
             <TextInput value={text} editable={live} multiline maxLength={4000} accessibilityLabel="Message"
               onChangeText={(v) => { setText(v); if (Date.now() - lastTyping.current > 2000) { lastTyping.current = Date.now(); s.notifyTyping(); } }}
-              placeholder={live ? 'Type a message…' : ended ? 'This consultation has ended' : 'Chat opens when the session starts'} placeholderTextColor={c.muted}
+              placeholder={live ? t('chat.type') : ended ? t('chat.ended') : t('chat.opens')} placeholderTextColor={c.muted}
               onSubmitEditing={Platform.OS === 'web' ? send : undefined}
-              style={[F.r, { flex: 1, fontSize: 15.5, color: c.text, maxHeight: 110, paddingVertical: 12 }]} />
+              style={[fontFor('r', text || t('chat.type')), { flex: 1, fontSize: 15.5, color: c.text, maxHeight: 110, paddingVertical: 12 }]} />
             <Ionicons name="happy-outline" size={22} color={c.muted} />
           </View>
           <Pressable onPress={send} disabled={!live || !text.trim()} accessibilityRole="button" accessibilityLabel="Send"
@@ -167,14 +169,14 @@ export default function ChatRoom() {
 
       <Sheet visible={menu} onClose={() => setMenu(false)} title="Consultation">
         {[
-          ['dharmachakra', 'View my Kundli', () => { setMenu(false); setChartOpen(true); }, true],
-          ['timer-plus-outline', 'Extend session', () => { setMenu(false); setExtendOpen(true); }, live && k.paymentMethod === 'wallet'],
-          ['receipt', 'Booking & receipt', () => { setMenu(false); router.push(`/booking/${k.bookingId}`); }, true],
-          ['lifebuoy', 'Report a problem', () => { setMenu(false); router.push('/support'); }, true],
-          ['phone-hangup-outline', 'End consultation', end, live],
-        ].filter((x) => x[3]).map(([icon, label, onPress]) => (
+          ['dharmachakra', t('chat.viewKundli'), () => { setMenu(false); setChartOpen(true); }, true],
+          ['timer-plus-outline', t('chat.extend'), () => { setMenu(false); setExtendOpen(true); }, live && k.paymentMethod === 'wallet'],
+          ['receipt', t('chat.receipt'), () => { setMenu(false); router.push(`/booking/${k.bookingId}`); }, true],
+          ['lifebuoy', t('chat.report'), () => { setMenu(false); router.push('/support'); }, true],
+          ['phone-hangup-outline', t('chat.end'), end, live, true],
+        ].filter((x) => x[3]).map(([icon, label, onPress, , danger]) => (
           <Pressable key={label} onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13 }} accessibilityRole="button">
-            <MCI name={icon} size={22} color={label === 'End consultation' ? c.bad : c.primary} /><Txt w="m" size={15.5} color={label === 'End consultation' ? c.bad : c.text}>{label}</Txt>
+            <MCI name={icon} size={22} color={danger ? c.bad : c.primary} /><Txt w="m" size={15.5} color={danger ? c.bad : c.text}>{label}</Txt>
           </Pressable>
         ))}
       </Sheet>

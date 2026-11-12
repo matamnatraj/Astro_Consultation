@@ -1,10 +1,12 @@
 import { Tabs } from 'expo-router/tabs';
 import { MaterialCommunityIcons as MCI } from '@expo/vector-icons';
 import { astrovedas as c } from '../../lib/theme.js';
+import { useT } from '../../lib/i18n.js';
 
 const icon = (name) => ({ color, size }) => <MCI name={name} size={size ?? 26} color={color} />;
 
 export default function TabsLayout() {
+  const t = useT();
   return (
     <Tabs screenOptions={{
       headerShown: false,
@@ -17,11 +19,11 @@ export default function TabsLayout() {
       },
       sceneStyle: { backgroundColor: c.bg },
     }}>
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: icon('home') }} />
-      <Tabs.Screen name="astrologers" options={{ title: 'Astrologers', tabBarIcon: icon('meditation') }} />
-      <Tabs.Screen name="kundli" options={{ title: 'Kundli', tabBarIcon: icon('dharmachakra') }} />
-      <Tabs.Screen name="wallet" options={{ title: 'Wallet', tabBarIcon: icon('wallet') }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('account') }} />
+      <Tabs.Screen name="index" options={{ title: t('tab.home'), tabBarIcon: icon('home') }} />
+      <Tabs.Screen name="astrologers" options={{ title: t('tab.astrologers'), tabBarIcon: icon('meditation') }} />
+      <Tabs.Screen name="kundli" options={{ title: t('tab.kundli'), tabBarIcon: icon('dharmachakra') }} />
+      <Tabs.Screen name="wallet" options={{ title: t('tab.wallet'), tabBarIcon: icon('wallet') }} />
+      <Tabs.Screen name="profile" options={{ title: t('tab.profile'), tabBarIcon: icon('account') }} />
     </Tabs>
   );
 }
