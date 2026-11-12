@@ -50,6 +50,13 @@ r.put('/me', async (req, res) => {
   res.json(presentProfile(p));
 });
 
+export const LANGUAGES = ['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn'];
+r.patch('/me/language', async (req, res) => {
+  const { language } = parse(z.object({ language: z.enum(LANGUAGES) }), req.body);
+  await one('UPDATE client_profiles SET preferred_language = $2, updated_at = now() WHERE client_id = $1 RETURNING client_id', [req.clientId, language]);
+  res.json({ language });
+});
+
 // Data portability: export everything we hold for this customer.
 r.get('/me/export', async (req, res) => {
   const [profile, birthProfiles, charts, bookings, consents] = await Promise.all([

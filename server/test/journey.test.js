@@ -566,3 +566,26 @@ test('predictions: today transits computed against the customer chart', async ()
   assert.ok(r.data.transits.every((t) => t.houseFromMoon >= 1 && t.houseFromMoon <= 12 && t.theme));
   assert.ok(r.data.currentMahadasha?.lord);
 });
+
+test('matching API: saved kundli vs typed details, recent list; language preference', async () => {
+  const m = await api('POST', '/v1/matching', { token: ctx.w.token, body: {
+    boy: { birthProfileId: ctx.w.birthProfileId },
+    girl: { name: 'Lakshmi', birthDate: '1994-05-20', birthTime: '06:30', timeAccuracy: 'exact', placeName: 'Hyderabad, Telangana, India', latitude: 17.385, longitude: 78.4867, tzName: 'Asia/Kolkata' },
+  } });
+  assert.equal(m.status, 201, JSON.stringify(m.data));
+  assert.equal(m.data.kootas.length, 8);
+  assert.equal(m.data.kootas.reduce((s, k) => s + k.points, 0), m.data.total);
+  assert.ok(m.data.boy.moonSign && m.data.girl.nakshatra);
+  assert.ok(typeof m.data.manglik.verdict === 'string');
+  const list = await api('GET', '/v1/matching', { token: ctx.w.token });
+  assert.equal(list.data[0].matchId, m.data.matchId);
+  const other = await login('+919911112222', 'customer');
+  assert.equal((await api('GET', `/v1/matching/${m.data.matchId}`, { token: other.accessToken })).status, 404, 'matches are private');
+  const bad = await api('POST', '/v1/matching', { token: ctx.w.token, body: { boy: { birthProfileId: ctx.birthProfileId }, girl: { birthProfileId: ctx.w.birthProfileId } } });
+  assert.equal(bad.status, 400, "cannot use another customer's kundli");
+
+  const lang = await api('PATCH', '/v1/clients/me/language', { token: ctx.w.token, body: { language: 'te' } });
+  assert.equal(lang.data.language, 'te');
+  assert.equal((await api('GET', '/v1/clients/me', { token: ctx.w.token })).data.preferredLanguage, 'te');
+  assert.equal((await api('PATCH', '/v1/clients/me/language', { token: ctx.w.token, body: { language: 'xx' } })).status, 400);
+});

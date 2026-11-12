@@ -11,6 +11,7 @@ r.get('/', (_req, res) => {
     enabledModes: ENABLED_MODES,
     welcomeFreeMinutes: WELCOME_FREE_MINUTES,
     reviewTags: REVIEW_TAGS,
+    languages: ['en', 'hi', 'te', 'ta', 'kn', 'mr', 'bn'],
   });
 });
 export const REVIEW_TAGS = ['Knowledgeable', 'Helpful', 'Polite', 'Accurate', 'Friendly', 'Professional', 'Patient', 'Clear guidance'];

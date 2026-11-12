@@ -19,6 +19,7 @@ import adminRoutes from './modules/admin/routes.js';
 import { filesRouter } from './modules/files/storage.js';
 import walletRoutes from './modules/wallet/routes.js';
 import appConfigRoutes from './modules/content/appConfig.js';
+import matchingRoutes from './modules/matching/routes.js';
 
 export function createApp() {
   const app = express();
@@ -59,6 +60,7 @@ export function createApp() {
   v1.use('/files', filesRouter);
   v1.use('/wallet', walletRoutes);
   v1.use('/config', appConfigRoutes);
+  v1.use('/matching', matchingRoutes);
   app.use('/v1', v1);
 
   app.use((_req, _res, next) => next(new AppError(404, 'not_found', 'Route not found')));
