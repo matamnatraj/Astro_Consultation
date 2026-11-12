@@ -6,9 +6,9 @@ export const api = createApi('astro.customer.session');
 export function routeFor(n) {
   const d = n.data || n;
   const type = n.type || d.type || '';
-  if (d.consultationId && ['consultation.started', 'consultation.ready', 'consultation.reminder'].includes(type)) return `/consultation/${d.consultationId}`;
+  if (d.consultationId) return `/consultation/${d.consultationId}`;
   if (d.bookingId) return `/booking/${d.bookingId}`;
-  if (d.consultationId) return '/sessions';
+  if (d.wallet || type.startsWith('wallet')) return '/wallet';
   if (d.ticketId) return '/support';
   return null;
 }

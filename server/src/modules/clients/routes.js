@@ -7,6 +7,7 @@ import { isValidTimeZone, zonedToUtc } from '../../lib/timezone.js';
 import { searchPlaces } from '../../providers/geo/gazetteer.js';
 import { generateChart, presentChart, CHART_AFFECTING_FIELDS } from '../charts/service.js';
 import { audit } from '../../lib/audit.js';
+import { calculate } from '../../providers/astrology/builtinEngine.js';
 
 const r = Router();
 r.use(authenticate, requireRole('customer'));
@@ -234,6 +235,38 @@ r.get('/me/charts/:id', async (req, res) => {
   const c = await one('SELECT * FROM birth_charts WHERE chart_id = $1 AND client_id = $2', [req.params.id, req.clientId]);
   if (!c) throw notFound('Chart');
   res.json(presentChart(c));
+});
+
+// ───────────── Today's transits over the customer's own chart (computed, not invented text) ─────────────
+const HOUSE_THEMES = ['Self, health & personality', 'Wealth, speech & family', 'Courage, effort & siblings', 'Home, mother & comfort',
+  'Children, learning & creativity', 'Health, service & obstacles', 'Partnership & marriage', 'Change & hidden matters',
+  'Fortune, dharma & travel', 'Career & reputation', 'Gains, income & friends', 'Expenses, rest & spirituality'];
+
+r.get('/me/today', async (req, res) => {
+  const bp = await one(
+    `SELECT b.*, c.output FROM birth_profiles b
+     LEFT JOIN LATERAL (SELECT output FROM birth_charts WHERE birth_profile_id = b.birth_profile_id AND status <> 'failed' AND (config->>'system') = 'vedic'
+                        ORDER BY generated_at DESC LIMIT 1) c ON true
+     WHERE b.client_id = $1 AND b.archived_at IS NULL ORDER BY b.is_primary DESC, b.created_at LIMIT 1`, [req.clientId],
+  );
+  if (!bp?.output) return res.json({ available: false });
+  const natal = bp.output;
+  const now = calculate({ birthUtc: new Date(), latitude: Number(bp.latitude), longitude: Number(bp.longitude), timeKnown: true },
+    { system: 'vedic', ayanamsa: 'lahiri', houseSystem: 'whole_sign' });
+  const moonSign = natal.planets.find((p) => p.name === 'Moon').signIndex;
+  const transits = now.planets.map((p) => {
+    const fromMoon = ((p.signIndex - moonSign + 12) % 12) + 1;
+    const fromLagna = ((p.signIndex - natal.ascendant.signIndex + 12) % 12) + 1;
+    return { planet: p.name, sign: p.sign, degree: p.dms, retrograde: p.retrograde, houseFromMoon: fromMoon, houseFromLagna: fromLagna, theme: HOUSE_THEMES[fromMoon - 1] };
+  });
+  const t = Date.now();
+  const md = natal.dasha?.mahadashas.find((d) => new Date(d.start) <= t && t < new Date(d.end)) || null;
+  res.json({
+    available: true, date: new Date().toISOString(), forName: bp.full_name,
+    moonSign: natal.summary.moonSign, lagna: natal.summary.lagna, nakshatra: natal.summary.janmaNakshatra,
+    currentMahadasha: md, transits,
+    note: 'Computed planetary transits relative to your birth chart. For a personal interpretation, consult an astrologer.',
+  });
 });
 
 export const placesRouter = Router();

@@ -557,3 +557,12 @@ test('admin: wallet adjustment is audited; recharge cannot be card-refunded', as
   const payments = await api('GET', '/v1/admin/payments', { token: admin.accessToken });
   assert.ok(payments.data.some((p) => p.purpose === 'wallet_recharge'));
 });
+
+test('predictions: today transits computed against the customer chart', async () => {
+  const r = await api('GET', '/v1/clients/me/today', { token: ctx.w.token });
+  assert.equal(r.status, 200);
+  assert.equal(r.data.available, true);
+  assert.equal(r.data.transits.length, 9);
+  assert.ok(r.data.transits.every((t) => t.houseFromMoon >= 1 && t.houseFromMoon <= 12 && t.theme));
+  assert.ok(r.data.currentMahadasha?.lord);
+});

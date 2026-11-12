@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { useColorScheme } from 'react-native';
 
 const light = {
@@ -13,8 +14,20 @@ const dark = {
   info: '#6aa6ec', infoSoft: '#172a40', live: '#f06595', liveSoft: '#3a1726', chartLine: '#8c84c4', chartAsc: '#3a2b16',
 };
 
+/** Apps can supply their own brand palette (and fonts) via <ThemeContext.Provider value={palette}>. */
+export const ThemeContext = createContext(null);
+
 export function useTheme() {
-  return useColorScheme() === 'dark' ? dark : light;
+  const scheme = useColorScheme();
+  const branded = useContext(ThemeContext);
+  return branded || (scheme === 'dark' ? dark : light);
+}
+
+/** Font family for a weight when the theme ships custom fonts (custom fonts don't synthesise bold on Android). */
+export function fontFor(c, weight = '400') {
+  if (!c.fonts) return { fontWeight: weight };
+  const fam = { '400': c.fonts.regular, '500': c.fonts.medium, '600': c.fonts.semibold, '700': c.fonts.bold }[weight] || c.fonts.regular;
+  return { fontFamily: fam };
 }
 export const TONES = (c) => ({
   ok: [c.okSoft, c.ok], warn: [c.warnSoft, c.warn], bad: [c.badSoft, c.bad], info: [c.infoSoft, c.info],

@@ -1,33 +1,27 @@
-import { Text, Pressable, View } from 'react-native';
 import { Tabs } from 'expo-router/tabs';
-import { router } from 'expo-router';
-import { useTheme, useUnreadNotifications } from '@astro/mobile-core';
+import { MaterialCommunityIcons as MCI } from '@expo/vector-icons';
+import { astrovedas as c } from '../../lib/theme.js';
 
-const icon = (glyph) => ({ color }) => <Text style={{ color, fontSize: 20 }}>{glyph}</Text>;
-
-function Bell() {
-  const c = useTheme();
-  const [count] = useUnreadNotifications();
-  return (
-    <Pressable onPress={() => router.push('/notifications')} hitSlop={10} style={{ marginRight: 16 }} accessibilityRole="button" accessibilityLabel={`Notifications, ${count} unread`}>
-      <Text style={{ fontSize: 20, color: c.text }}>🔔</Text>
-      {count > 0 ? <View style={{ position: 'absolute', top: -4, right: -8, backgroundColor: c.live, borderRadius: 9, minWidth: 18, paddingHorizontal: 4 }}><Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center' }}>{count > 9 ? '9+' : count}</Text></View> : null}
-    </Pressable>
-  );
-}
+const icon = (name) => ({ color, size }) => <MCI name={name} size={size ?? 26} color={color} />;
 
 export default function TabsLayout() {
-  const c = useTheme();
   return (
     <Tabs screenOptions={{
-      tabBarActiveTintColor: c.primary, tabBarInactiveTintColor: c.muted, tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border },
-      headerStyle: { backgroundColor: c.surface }, headerTintColor: c.text, headerTitleStyle: { fontWeight: '700' }, headerRight: () => <Bell />,
+      headerShown: false,
+      tabBarActiveTintColor: c.primary,
+      tabBarInactiveTintColor: '#B49A86',
+      tabBarLabelStyle: { fontFamily: c.fonts.medium, fontSize: 12 },
+      tabBarStyle: {
+        backgroundColor: '#FFFFFF', borderTopWidth: 0, height: 72, paddingTop: 8, paddingBottom: 10,
+        borderTopLeftRadius: 26, borderTopRightRadius: 26, position: 'absolute', ...c.shadow, shadowOpacity: 0.1,
+      },
+      sceneStyle: { backgroundColor: c.bg },
     }}>
-      <Tabs.Screen name="index" options={{ title: 'Jyotish Connect', tabBarLabel: 'Home', tabBarIcon: icon('⌂') }} />
-      <Tabs.Screen name="astrologers" options={{ title: 'Astrologers', tabBarLabel: 'Explore', tabBarIcon: icon('✦') }} />
-      <Tabs.Screen name="sessions" options={{ title: 'My sessions', tabBarLabel: 'Sessions', tabBarIcon: icon('◷') }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile & charts', tabBarLabel: 'Profile', tabBarIcon: icon('☉') }} />
-      <Tabs.Screen name="support" options={{ title: 'Help & support', tabBarLabel: 'Help', tabBarIcon: icon('?') }} />
+      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: icon('home') }} />
+      <Tabs.Screen name="astrologers" options={{ title: 'Astrologers', tabBarIcon: icon('meditation') }} />
+      <Tabs.Screen name="kundli" options={{ title: 'Kundli', tabBarIcon: icon('dharmachakra') }} />
+      <Tabs.Screen name="wallet" options={{ title: 'Wallet', tabBarIcon: icon('wallet') }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('account') }} />
     </Tabs>
   );
 }

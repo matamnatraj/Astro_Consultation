@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import { useAuth, useAsync, Screen, Card, T, Button, Chips, Chip, Badge, ListItem, ChartView, Loading, ErrorBox, useToast, fmtDateTime } from '@astro/mobile-core';
+import { useAuth, useAsync, Screen, Card, T, Button, Chips, Chip, Badge, ListItem, ChartView, Loading, ErrorBox, useToast, fmtDateTime, KV } from '@astro/mobile-core';
 
 export default function ChartScreen() {
   const { birthProfileId } = useLocalSearchParams();
@@ -25,6 +25,16 @@ export default function ChartScreen() {
       <Screen onRefresh={charts.refresh} refreshing={charts.refreshing}>
         <T bold size={20}>{p.fullName}</T>
         <T muted small>{p.birthDate} · {p.birthTime?.slice(0, 5) || 'time unknown'} · {p.placeName}</T>
+        {chart?.output ? (
+          <Card title="Basic Details">
+            <KV rows={[
+              ['Name', p.fullName], ['Date', p.birthDate], ['Time', p.birthTime ? p.birthTime.slice(0, 5) : 'Unknown'], ['Place', p.placeName],
+              ['Latitude', p.latitude.toFixed(4)], ['Longitude', p.longitude.toFixed(4)], ['Timezone', `${p.tzName} (GMT${p.tzOffsetMinutes >= 0 ? '+' : '-'}${Math.abs(p.tzOffsetMinutes) / 60})`],
+              chart.output.ayanamsa && ['Ayanamsa', `${chart.output.ayanamsa.name} ${chart.output.ayanamsa.degrees}°`],
+              ['Ascendant', chart.output.summary.lagna], ['Moon sign', chart.output.summary.moonSign], ['Sun sign', chart.output.summary.sunSign], ['Nakshatra', chart.output.summary.janmaNakshatra],
+            ]} />
+          </Card>
+        ) : null}
         <ChartView chart={chart} birthProfile={p} availability={chart?.status} onRegenerate={regenerate} regenerating={busy} />
         <Card title="Generate a new version">
           <Chips>{[['vedic', 'Vedic (Lahiri)'], ['western', 'Western']].map(([v, l]) => <Chip key={v} label={l} active={system === v} onPress={() => setSystem(v)} />)}</Chips>

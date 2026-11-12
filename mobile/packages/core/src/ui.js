@@ -4,14 +4,14 @@ import {
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme, TONES } from './theme.js';
+import { useTheme, TONES, fontFor } from './theme.js';
 import { STATUS_TONE, titleCase } from './format.js';
 
 export function T({ style, muted, small, tiny, bold, size, color, center, children, ...p }) {
   const c = useTheme();
   return (
     <Text
-      style={[{ color: color || (muted ? c.muted : c.text), fontSize: size || (tiny ? 12 : small ? 13 : 15), fontWeight: bold ? '700' : '400', textAlign: center ? 'center' : undefined, lineHeight: (size || (tiny ? 12 : small ? 13 : 15)) * 1.4 }, style]}
+      style={[{ color: color || (muted ? c.muted : c.text), fontSize: size || (tiny ? 12 : small ? 13 : 15), ...fontFor(c, bold ? (bold === true ? '600' : bold) : '400'), textAlign: center ? 'center' : undefined, lineHeight: (size || (tiny ? 12 : small ? 13 : 15)) * 1.45 }, style]}
       {...p}
     >{children}</Text>
   );
@@ -41,7 +41,7 @@ export function Screen({ children, onRefresh, refreshing = false, scroll = true,
 
 export function Card({ title, right, children, style, onPress, pad = true }) {
   const c = useTheme();
-  const base = { backgroundColor: c.surface, borderColor: c.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14 };
+  const base = { backgroundColor: c.surface, borderColor: c.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: c.radius?.card ?? 14, ...(c.shadow || {}) };
   const inner = (
     <>
       {(title || right) && (
@@ -68,13 +68,13 @@ export function Button({ title, onPress, variant = 'primary', size, loading, dis
       onPress={onPress} disabled={isDisabled} accessibilityRole="button" accessibilityLabel={accessibilityLabel || title} accessibilityState={{ disabled: isDisabled, busy: loading }}
       hitSlop={6}
       style={({ pressed }) => [{
-        backgroundColor: bg, borderRadius: 10, paddingVertical: size === 'sm' ? 8 : size === 'lg' ? 15 : 12, paddingHorizontal: size === 'sm' ? 12 : 18,
+        backgroundColor: bg, borderRadius: c.radius?.button ?? 10, paddingVertical: size === 'sm' ? 8 : size === 'lg' ? 15 : 12, paddingHorizontal: size === 'sm' ? 12 : 18,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isDisabled ? 0.5 : pressed ? 0.8 : 1,
         borderWidth: variant === 'secondary' ? 1 : 0, borderColor: c.border, minHeight: size === 'sm' ? 36 : 44,
       }, style]}
     >
       {loading ? <ActivityIndicator size="small" color={fg} /> : icon}
-      <Text style={{ color: fg, fontWeight: '700', fontSize: size === 'sm' ? 13 : size === 'lg' ? 17 : 15 }}>{title}</Text>
+      <Text style={{ color: fg, ...fontFor(c, '600'), fontSize: size === 'sm' ? 13 : size === 'lg' ? 16 : 15 }}>{title}</Text>
     </Pressable>
   );
 }
@@ -82,7 +82,7 @@ export function Button({ title, onPress, variant = 'primary', size, loading, dis
 export function Badge({ status, tone, label }) {
   const c = useTheme();
   const [bg, fg] = TONES(c)[tone || STATUS_TONE[status] || 'muted'];
-  return <View style={{ backgroundColor: bg, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 2, alignSelf: 'flex-start' }}><Text style={{ color: fg, fontSize: 12, fontWeight: '700' }}>{label || titleCase(status)}</Text></View>;
+  return <View style={{ backgroundColor: bg, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 2, alignSelf: 'flex-start' }}><Text style={{ color: fg, fontSize: 12, ...fontFor(c, '600') }}>{label || titleCase(status)}</Text></View>;
 }
 
 export function Notice({ tone = 'info', children, action }) {
@@ -119,7 +119,7 @@ export function Field({ label, hint, error, style, ...input }) {
         placeholderTextColor={c.muted}
         accessibilityLabel={label}
         {...input}
-        style={[{ borderWidth: 1, borderColor: error ? c.bad : c.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 12 : 9, fontSize: 16, color: c.text, backgroundColor: c.surface, minHeight: input.multiline ? 80 : 46, textAlignVertical: input.multiline ? 'top' : 'center' }, input.inputStyle]}
+        style={[{ borderWidth: 1, borderColor: error ? c.bad : c.border, borderRadius: c.radius?.input ?? 10, ...fontFor(c, '400'), paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 12 : 9, fontSize: 16, color: c.text, backgroundColor: c.surface, minHeight: input.multiline ? 80 : 46, textAlignVertical: input.multiline ? 'top' : 'center' }, input.inputStyle]}
       />
       {error ? <T tiny color={c.bad}>{error}</T> : hint ? <T tiny muted>{hint}</T> : null}
     </View>
@@ -131,7 +131,7 @@ export function Chip({ label, active, onPress }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: !!active }} hitSlop={4}
       style={{ borderRadius: 99, borderWidth: 1, borderColor: active ? c.primary : c.border, backgroundColor: active ? c.primarySoft : c.surface, paddingHorizontal: 13, paddingVertical: 7 }}>
-      <Text style={{ color: active ? c.primary : c.text2, fontWeight: '600', fontSize: 13 }}>{label}</Text>
+      <Text style={{ color: active ? c.primary : c.text2, ...fontFor(c, '500'), fontSize: 13 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -144,7 +144,7 @@ export function Segmented({ options, value, onChange }) {
       {options.map((o) => (
         <Pressable key={o.value} onPress={() => !o.disabled && onChange(o.value)} disabled={o.disabled} accessibilityRole="tab" accessibilityState={{ selected: value === o.value, disabled: o.disabled }}
           style={{ flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center', backgroundColor: value === o.value ? c.surface : 'transparent', opacity: o.disabled ? 0.4 : 1 }}>
-          <Text style={{ fontWeight: '700', fontSize: 14, color: value === o.value ? c.primary : c.text2 }}>{o.label}</Text>
+          <Text style={{ ...fontFor(c, '600'), fontSize: 14, color: value === o.value ? c.primary : c.text2 }}>{o.label}</Text>
         </Pressable>
       ))}
     </View>
@@ -270,7 +270,7 @@ export function Tabs({ tabs, value, onChange }) {
       {tabs.map((t) => (
         <Pressable key={t.value} onPress={() => onChange(t.value)} accessibilityRole="tab" accessibilityState={{ selected: value === t.value }}
           style={{ flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderColor: value === t.value ? c.primary : 'transparent' }}>
-          <Text style={{ fontWeight: '700', color: value === t.value ? c.primary : c.muted }}>{t.label}</Text>
+          <Text style={{ ...fontFor(c, '600'), color: value === t.value ? c.primary : c.muted }}>{t.label}</Text>
         </Pressable>
       ))}
     </View>

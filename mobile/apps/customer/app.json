@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Jyotish Connect",
-    "slug": "jyotish-connect",
+    "name": "Astrovedas",
+    "slug": "astrovedas",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "astrocustomer",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.jyotishconnect.customer",
+      "bundleIdentifier": "com.astrovedas.app",
       "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
@@ -16,10 +16,10 @@
       }
     },
     "android": {
-      "package": "com.jyotishconnect.customer",
+      "package": "com.astrovedas.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#4B3FB5",
+        "backgroundColor": "#E8711A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -47,17 +47,13 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#F6F5FB",
-          "dark": {
-            "image": "./assets/splash-icon.png",
-            "backgroundColor": "#12111C"
-          }
+          "backgroundColor": "#FDF5EC"
         }
       ]
     ],
     "extra": {
       "apiUrl": ""
     },
-    "description": "Consult verified astrologers with your saved birth chart."
+    "description": "Talk to verified astrologers by chat or call — kundli, predictions and more."
   }
 }

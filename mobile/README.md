@@ -4,7 +4,7 @@ Native mobile apps for the Astrology Consultation Platform, built with **React N
 
 | App | Folder | Store name | Android package / iOS bundle ID | Deep-link scheme |
 |---|---|---|---|---|
-| Customer | `apps/customer` | **Jyotish Connect** | `com.jyotishconnect.customer` | `astrocustomer://` |
+| Customer | `apps/customer` | **Astrovedas** | `com.astrovedas.app` | `astrocustomer://` |
 | Astrologer | `apps/astrologer` | **Jyotish Partner** | `com.jyotishconnect.astrologer` | `astroastrologer://` |
 | Shared code | `packages/core` | — | — | — |
 
@@ -12,7 +12,16 @@ Native mobile apps for the Astrology Consultation Platform, built with **React N
 
 ## What's in each app
 
-**Customer (Jyotish Connect):** OTP login → notice acceptance → home (banners, active sessions, top astrologers) → search and filter astrologers → profile and reviews → book now or schedule (slot, duration, whose chart, price and policy) → pay in a secure in-app browser → live status → consultation room (chat + **My chart** tab) → receipt, review, cancel. Also: birth profiles (place search, time accuracy, versioning), chart view (North/South Indian, wheel, planets, dasha) with regeneration and history, profile and privacy (export data, deletion request), support tickets, help assistant, and notifications.
+**Customer (Astrovedas)** follows the designer's Figma: cream and saffron theme, Poppins type, and bottom tabs **Home · Astrologers · Kundli · Wallet · Profile**.
+- **Home:** greeting, **VEDA Wallet** pill, search with filters, promo carousel (Free Kundli, Predictions, Welcome Gift), Chat / Call / Kundli shortcuts, astrology categories, online astrologers, recent sessions.
+- **Astrologers:** All / Chat / Call tabs, search, an **Online Only** switch, sort, favourites (♥). The **Search Filters** screen offers language, experience, a price-range slider, speciality and mode.
+- **Astrologer profile:** stats tiles plus About, Reviews (with top tags) and Services.
+- **Consultation setup:** mode cards, duration chips, price breakdown with a **Welcome Gift (2 min free)**, the wallet balance, and **Confirm & Start Chat**. It is paid from the wallet: the amount is held and only used minutes are charged.
+- **Chat:** timer and amount bar, file attachments, extending the session from the wallet, viewing your kundli mid-chat, and ending the session; then the **Rate Your Consultation** screen with tags.
+- **Wallet:** recharge packs with bonus, amount entry, gateway checkout, transaction history.
+- **Kundli:** saved charts, Create New Kundli, basic details, chart styles, planets and dasha. **Predictions:** today's transits over your chart and the current dasha.
+- **Profile:** consultations, favourites, support, help assistant, account and privacy, sign out.
+- **Audio call:** the screen is built as designed, but switched off until a voice provider is integrated (set `ENABLED_MODES=chat,voice` on the server once it is).
 
 **Astrologer (Jyotish Partner):** OTP login → dashboard with an **Online** switch and live request queue (accept/decline with countdown) → **consultation workspace** with a dedicated **☉ Birth Chart** button and Chat / Birth Chart tabs. Both panes stay mounted, so switching never interrupts the chat, timer or billing, and an unread badge shows new messages while the chart is open. The workspace also has a client summary, start/end controls and private notes. Plus: consultation history, availability slots, earnings ledger and payouts, profile onboarding (rates, ID upload from the phone, bank details, submit for verification), support and notifications.
 

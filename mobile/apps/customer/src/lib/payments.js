@@ -20,3 +20,17 @@ export async function payInBrowser(api, bookingId) {
   if (result.type !== 'success') return 'dismissed';
   return Linking.parse(result.url).queryParams?.payment === 'success' ? 'success' : 'failure';
 }
+
+/** Wallet recharge through the gateway's hosted checkout. Returns 'success' | 'failure' | 'dismissed' | 'redirected'. */
+export async function payRecharge(api, amountPaise) {
+  if (Platform.OS === 'web') {
+    const r = await api.post('/wallet/recharge', { amountPaise, returnUrl: `${window.location.origin}/wallet` });
+    window.location.assign(absoluteUrl(r.checkoutUrl));
+    return 'redirected';
+  }
+  const returnUrl = Linking.createURL('wallet');
+  const r = await api.post('/wallet/recharge', { amountPaise, returnUrl });
+  const result = await WebBrowser.openAuthSessionAsync(absoluteUrl(r.checkoutUrl), returnUrl);
+  if (result.type !== 'success') return 'dismissed';
+  return Linking.parse(result.url).queryParams?.payment === 'success' ? 'success' : 'failure';
+}
