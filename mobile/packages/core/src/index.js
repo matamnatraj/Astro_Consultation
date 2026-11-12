@@ -11,3 +11,4 @@ export * from './push.js';
 export * from './ChartView.js';
 export * from './consultation.js';
 export * from './screens.js';
+export * from './i18n.js';

@@ -5,6 +5,7 @@ import { createRealtime, RealtimeContext } from './realtime.js';
 import { useTheme } from './theme.js';
 import { T, H1, Button, Field, ErrorBox, Loading, Notice, Check, Screen } from './ui.js';
 import { registerForPush } from './push.js';
+import { useT, LanguageButton } from './i18n.js';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -51,6 +52,7 @@ export function AuthProvider({ api, role, app, children }) {
 /** OTP sign-in screen shared by both mobile apps. */
 export function LoginScreen({ api, role, title, tagline }) {
   const c = useTheme();
+  const t = useT();
   const [step, setStep] = useState('id');
   const [identifier, setIdentifier] = useState('');
   const [name, setName] = useState('');
@@ -76,6 +78,7 @@ export function LoginScreen({ api, role, title, tagline }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
+      <View style={{ alignItems: 'flex-end', paddingHorizontal: 16, paddingTop: 8 }}><LanguageButton /></View>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, gap: 16 }} keyboardShouldPersistTaps="handled">
         <View style={{ alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <View style={{ width: 64, height: 64, borderRadius: 18, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}><T size={32} color="#fff">✦</T></View>
@@ -85,19 +88,19 @@ export function LoginScreen({ api, role, title, tagline }) {
         <ErrorBox error={error} />
         {step === 'id' ? (
           <>
-            <Field label="Mobile number" placeholder="98765 43210" value={identifier} onChangeText={setIdentifier} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" autoFocus />
-            <Button title="Send one-time code" size="lg" loading={busy} disabled={identifier.trim().length < 6} onPress={request} />
+            <Field label={t('core.mobile')} placeholder="98765 43210" value={identifier} onChangeText={setIdentifier} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" autoFocus />
+            <Button title={t('core.sendCode')} size="lg" loading={busy} disabled={identifier.trim().length < 6} onPress={request} />
           </>
         ) : (
           <>
-            <T small>Enter the 6-digit code sent by SMS to <T small bold>{identifier}</T>.</T>
-            {challenge.devCode ? <Notice tone="info">{`Development mode: code ${challenge.devCode} filled in.`}</Notice> : null}
-            <Field label="One-time code" value={code} onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" autoComplete="sms-otp" textContentType="oneTimeCode" autoFocus />
-            {challenge.isNewAccount ? <Field label="Your name" value={name} onChangeText={setName} autoComplete="name" textContentType="name" /> : null}
-            <Button title="Verify & continue" size="lg" loading={busy} disabled={code.length !== 6 || (challenge.isNewAccount && !name.trim())} onPress={verify} />
+            <T small>{t('core.codeSent')} <T small bold>{identifier}</T></T>
+            {challenge.devCode ? <Notice tone="info">{t('core.devCode', { code: challenge.devCode })}</Notice> : null}
+            <Field label={t('core.otp')} value={code} onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" autoComplete="sms-otp" textContentType="oneTimeCode" autoFocus />
+            {challenge.isNewAccount ? <Field label={t('core.yourName')} value={name} onChangeText={setName} autoComplete="name" textContentType="name" /> : null}
+            <Button title={t('core.verify')} size="lg" loading={busy} disabled={code.length !== 6 || (challenge.isNewAccount && !name.trim())} onPress={verify} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Button variant="ghost" size="sm" title="Change number" onPress={() => setStep('id')} />
-              <Button variant="ghost" size="sm" title="Resend code" onPress={request} disabled={busy} />
+              <Button variant="ghost" size="sm" title={t('core.changeNumber')} onPress={() => setStep('id')} />
+              <Button variant="ghost" size="sm" title={t('core.resend')} onPress={request} disabled={busy} />
             </View>
           </>
         )}
@@ -110,6 +113,7 @@ export function LoginScreen({ api, role, title, tagline }) {
 export function ConsentGate({ children }) {
   const { api } = useAuth();
   const c = useTheme();
+  const t = useT();
   const [pending, setPending] = useState(null);
   const [checked, setChecked] = useState({});
   const [open, setOpen] = useState({});
@@ -123,14 +127,14 @@ export function ConsentGate({ children }) {
     try { await api.post('/consents', { accept: pending.map((p) => ({ noticeType: p.noticeType, version: p.version })), context: 'mobile_app_gate' }); setPending([]); } catch (e) { setError(e); } finally { setBusy(false); }
   };
   return (
-    <Screen edges={['top', 'bottom']} footer={<View style={{ padding: 16 }}><Button title="I agree" size="lg" disabled={!pending.every((p) => checked[p.noticeType])} loading={busy} onPress={accept} /></View>}>
-      <H1>Before you continue</H1>
-      <T muted small>Please review and accept these notices. We record the version and time of your acceptance.</T>
+    <Screen edges={['top', 'bottom']} footer={<View style={{ padding: 16 }}><Button title={t('core.agree')} size="lg" disabled={!pending.every((p) => checked[p.noticeType])} loading={busy} onPress={accept} /></View>}>
+      <H1>{t('core.beforeContinue')}</H1>
+      <T muted small>{t('core.reviewNotices')}</T>
       <ErrorBox error={error} />
       {pending.map((p) => (
         <View key={p.noticeType} style={{ backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 14, gap: 10 }}>
-          <Check checked={!!checked[p.noticeType]} onChange={(v) => setChecked({ ...checked, [p.noticeType]: v })} label={<T small>I have read and accept the <T small bold>{p.title}</T> (v{p.version})</T>} />
-          <Button variant="ghost" size="sm" title={open[p.noticeType] ? 'Hide text' : 'Read'} onPress={() => setOpen({ ...open, [p.noticeType]: !open[p.noticeType] })} style={{ alignSelf: 'flex-start' }} />
+          <Check checked={!!checked[p.noticeType]} onChange={(v) => setChecked({ ...checked, [p.noticeType]: v })} label={<T small>{t('core.accept')} <T small bold>{p.title}</T> (v{p.version})</T>} />
+          <Button variant="ghost" size="sm" title={open[p.noticeType] ? t('core.hideText') : t('core.read')} onPress={() => setOpen({ ...open, [p.noticeType]: !open[p.noticeType] })} style={{ alignSelf: 'flex-start' }} />
           {open[p.noticeType] ? <T small muted>{p.body}</T> : null}
         </View>
       ))}

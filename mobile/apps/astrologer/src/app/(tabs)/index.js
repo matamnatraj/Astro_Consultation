@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Alert, Platform, Switch, View } from 'react-native';
 import { router } from 'expo-router';
-import { useAuth, useAsync, useNow, useRealtimeEvent, useRealtimeStatus, Screen, Card, T, H1, Row, Button, Badge, Notice, Stat, Avatar, ListItem, Empty, Loading, useToast, rupees, fmtDateTime, mmss, useTheme } from '@astro/mobile-core';
+import { useAuth, useAsync, useNow, useRealtimeEvent, useRealtimeStatus, Screen, Card, T, H1, Row, Button, Badge, Notice, Stat, Avatar, ListItem, Empty, Loading, useToast, rupees, fmtDateTime, mmss, useTheme, useT } from '@astro/mobile-core';
 
 export default function Dashboard() {
   const { api } = useAuth();
   const c = useTheme();
+  const t = useT();
   const me = useAsync(() => api.get('/astrologer/me'), []);
   const queue = useAsync(() => api.get('/consultations?status=requested,accepted,ready,in_progress'), []);
   const earnings = useAsync(() => api.get('/astrologer/me/earnings'), []);
@@ -15,7 +16,7 @@ export default function Dashboard() {
   const [busy, setBusy] = useState(null);
   const [toast, show] = useToast();
   useRealtimeEvent((ev) => {
-    if (ev.type === 'consultation.request') { queue.reload(); show('New consultation request!', 'info'); }
+    if (ev.type === 'consultation.request') { queue.reload(); show(t('dash.newRequest'), 'info'); }
     if (ev.type === 'notification' && ev.notification.data?.consultationId) queue.reload();
   });
   if (me.loading) return <Loading />;
@@ -36,67 +37,67 @@ export default function Dashboard() {
         if (action === 'accept' && r.status === 'ready') router.push(`/consultation/${k.consultationId}`);
       } catch (e) { show(e.message, 'bad'); queue.reload(); } finally { setBusy(null); }
     };
-    if (action === 'reject' && Platform.OS !== 'web') Alert.alert('Decline this request?', 'The client is not charged.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Decline', style: 'destructive', onPress: go }]);
+    if (action === 'reject' && Platform.OS !== 'web') Alert.alert(t('dash.declineQ'), t('dash.notCharged'), [{ text: t('common.cancel'), style: 'cancel' }, { text: t('common.decline'), style: 'destructive', onPress: go }]);
     else go();
   };
 
   return (
     <>
       <Screen onRefresh={() => { me.refresh(); queue.refresh(); earnings.refresh(); }} refreshing={queue.refreshing}>
-        <H1>Welcome, {a.displayName.split(' ')[0]}</H1>
+        <H1>{t('dash.welcome', { name: a.displayName.split(' ')[0] })}</H1>
         {approved ? (
           <Card>
             <Row style={{ justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
-                <T bold>{a.isOnline ? 'Online — accepting requests' : 'Offline'}</T>
-                <T small muted>{conn === 'online' ? 'Keep the app open to receive instant requests.' : 'Connecting…'}</T>
+                <T bold>{a.isOnline ? t('dash.online') : t('dash.offline')}</T>
+                <T small muted>{conn === 'online' ? t('dash.keepOpen') : t('dash.connecting')}</T>
               </View>
-              <Switch value={a.isOnline} onValueChange={toggleOnline} trackColor={{ true: c.ok, false: c.border }} accessibilityLabel="Online status" />
+              <Switch value={a.isOnline} onValueChange={toggleOnline} trackColor={{ true: c.ok, false: c.border }} accessibilityLabel={t('dash.onlineStatus')} />
             </Row>
           </Card>
         ) : (
-          <Notice tone={['rejected', 'suspended'].includes(a.verificationStatus) ? 'bad' : 'warn'} action={<Button size="sm" title="Go to profile" onPress={() => router.push('/profile')} style={{ alignSelf: 'flex-start' }} />}>
-            {`Verification: ${a.verificationStatus}. ${a.verificationStatus === 'submitted' ? 'Our team is reviewing your profile.' : 'Complete your profile, upload ID and submit for verification.'}${a.verificationNotes ? `\nReviewer: ${a.verificationNotes}` : ''}`}
+          <Notice tone={['rejected', 'suspended'].includes(a.verificationStatus) ? 'bad' : 'warn'} action={<Button size="sm" title={t('dash.goProfile')} onPress={() => router.push('/profile')} style={{ alignSelf: 'flex-start' }} />}>
+            {`${t('dash.verification', { status: a.verificationStatus })} ${a.verificationStatus === 'submitted' ? t('dash.reviewing') : t('dash.complete')}${a.verificationNotes ? `\n${t('dash.reviewer', { notes: a.verificationNotes })}` : ''}`}
           </Notice>
         )}
         {news.data?.map((n) => <Notice key={n.announcement_id} tone="info">{`${n.title}: ${n.body}`}</Notice>)}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-          <Stat label="Requests" value={requests.length} tone={requests.length ? 'warn' : undefined} />
-          <Stat label="Upcoming" value={upcoming.length} />
-          <Stat label="Rating" value={a.ratingCount ? a.ratingAvg.toFixed(1) : '—'} sub={`${a.ratingCount} reviews`} />
-          <Stat label="Eligible payout" value={rupees(earnings.data?.summary.eligible)} sub={`${rupees(earnings.data?.summary.on_hold)} on hold`} />
+          <Stat label={t('dash.requests')} value={requests.length} tone={requests.length ? 'warn' : undefined} />
+          <Stat label={t('dash.upcoming')} value={upcoming.length} />
+          <Stat label={t('dash.rating')} value={a.ratingCount ? a.ratingAvg.toFixed(1) : '—'} sub={t('dash.reviews', { n: a.ratingCount })} />
+          <Stat label={t('dash.eligible')} value={rupees(earnings.data?.summary.eligible)} sub={t('dash.onHold', { amt: rupees(earnings.data?.summary.on_hold) })} />
         </View>
-        <Card title={<Row gap={6}><T bold size={16}>Incoming requests</T>{requests.length ? <Badge tone="live" label={String(requests.length)} /> : null}</Row>}>
-          {queue.loading ? <Loading /> : !requests.length ? <Empty icon="☾" title="No pending requests">{a.isOnline ? 'You will be notified instantly.' : 'Go online to receive instant requests.'}</Empty> : requests.map((k) => {
+        <Card title={<Row gap={6}><T bold size={16}>{t('dash.incoming')}</T>{requests.length ? <Badge tone="live" label={String(requests.length)} /> : null}</Row>}>
+          {queue.loading ? <Loading /> : !requests.length ? <Empty icon="☾" title={t('dash.noPending')}>{a.isOnline ? t('dash.notified') : t('dash.goOnline')}</Empty> : requests.map((k) => {
             const left = Math.max(0, Math.floor((new Date(k.acceptDeadline) - now) / 1000));
             return (
               <View key={k.consultationId} style={{ gap: 8, paddingVertical: 8, borderBottomWidth: 1, borderColor: c.border }}>
                 <Row style={{ alignItems: 'flex-start' }}>
-                  <Avatar name={k.client.name || 'Client'} size={40} />
+                  <Avatar name={k.client.name || t('common.client')} size={40} />
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Row gap={6}><T bold>{k.client.name || 'Client'}</T><Badge tone={k.bookingType === 'instant' ? 'live' : 'info'} label={k.bookingType} /></Row>
-                    <T small muted>{k.bookingType === 'scheduled' ? fmtDateTime(k.scheduledAt) : 'Now'} · up to {k.durationMinutes} min · {rupees(k.ratePaise)}/min</T>
+                    <Row gap={6}><T bold>{k.client.name || t('common.client')}</T><Badge tone={k.bookingType === 'instant' ? 'live' : 'info'} label={t(`type.${k.bookingType}`)} /></Row>
+                    <T small muted>{k.bookingType === 'scheduled' ? fmtDateTime(k.scheduledAt) : t('dash.now')} · {t('common.upTo', { n: k.durationMinutes })} · {rupees(k.ratePaise)}/min</T>
                     {k.topic ? <T small>“{k.topic}”</T> : null}
-                    <T tiny color={left < 60 ? c.bad : c.muted}>Respond within {mmss(left)}</T>
+                    <T tiny color={left < 60 ? c.bad : c.muted}>{t('dash.respond', { t: mmss(left) })}</T>
                   </View>
                 </Row>
                 <Row>
-                  <Button style={{ flex: 1 }} variant="secondary" title="Decline" loading={busy === k.consultationId + 'reject'} onPress={() => act(k, 'reject')} />
-                  <Button style={{ flex: 1 }} title="Accept" loading={busy === k.consultationId + 'accept'} onPress={() => act(k, 'accept')} />
+                  <Button style={{ flex: 1 }} variant="secondary" title={t('common.decline')} loading={busy === k.consultationId + 'reject'} onPress={() => act(k, 'reject')} />
+                  <Button style={{ flex: 1 }} title={t('common.accept')} loading={busy === k.consultationId + 'accept'} onPress={() => act(k, 'accept')} />
                 </Row>
               </View>
             );
           })}
         </Card>
-        <Card title="Accepted & live">
-          {!upcoming.length ? <T small muted>Nothing scheduled.</T> : upcoming.map((k, i) => (
-            <ListItem key={k.consultationId} last={i === upcoming.length - 1} left={<Avatar name={k.client.name || 'Client'} size={40} />}
+        <Card title={t('dash.live')}>
+          {!upcoming.length ? <T small muted>{t('dash.nothing')}</T> : upcoming.map((k, i) => (
+            <ListItem key={k.consultationId} last={i === upcoming.length - 1} left={<Avatar name={k.client.name || t('common.client')} size={40} />}
               title={<Row gap={6}><T bold>{k.client.name}</T><Badge status={k.status} /></Row>}
-              subtitle={`${k.bookingType === 'scheduled' ? fmtDateTime(k.scheduledAt) : 'Instant'} · up to ${k.durationMinutes} min`}
-              onPress={() => router.push(`/consultation/${k.consultationId}`)} right={<T bold color={c.primary}>{k.status === 'in_progress' ? 'Resume ›' : 'Open ›'}</T>} />
+              subtitle={`${k.bookingType === 'scheduled' ? fmtDateTime(k.scheduledAt) : t('type.instant')} · ${t('common.upTo', { n: k.durationMinutes })}`}
+              onPress={() => router.push(`/consultation/${k.consultationId}`)} right={<T bold color={c.primary}>{k.status === 'in_progress' ? t('dash.resume') : t('dash.open')}</T>} />
           ))}
         </Card>
-        <Button variant="ghost" title="Help & support" onPress={() => router.push('/support')} />
+        <Button variant="ghost" title={t('nav.support')} onPress={() => router.push('/support')} />
       </Screen>
       {toast}
     </>

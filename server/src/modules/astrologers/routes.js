@@ -6,6 +6,7 @@ import { authenticate, requireRole, astrologerIdFor } from '../../lib/auth.js';
 import { isValidTimeZone } from '../../lib/timezone.js';
 import { putObject } from '../files/storage.js';
 import { isUserOnline } from '../../realtime/hub.js';
+import { LANGUAGES } from '../../lib/languages.js';
 
 // ───────────── Public discovery (customers) ─────────────
 export const discoveryRouter = Router();
@@ -138,6 +139,7 @@ const presentSelf = (a) => ({
   verificationStatus: a.verification_status,
   verificationNotes: a.verification_notes,
   workingHours: a.working_hours,
+  appLanguage: a.app_language,
   payoutDetails: a.payout_details ? { ...a.payout_details, accountNumber: mask(a.payout_details.accountNumber) } : null,
 });
 const mask = (s) => (s ? `••••${String(s).slice(-4)}` : null);
@@ -173,6 +175,12 @@ selfRouter.put('/me', async (req, res) => {
   );
   await query('UPDATE user_accounts SET display_name = $2 WHERE user_id = $1', [req.user.userId, b.displayName]);
   res.json(presentSelf(a));
+});
+
+selfRouter.patch('/me/app-language', async (req, res) => {
+  const { language } = parse(z.object({ language: z.enum(LANGUAGES) }), req.body);
+  await query('UPDATE astrologer_profiles SET app_language = $2, updated_at = now() WHERE astrologer_id = $1', [req.astrologerId, language]);
+  res.json({ language });
 });
 
 selfRouter.put('/me/payout-details', async (req, res) => {

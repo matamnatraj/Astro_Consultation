@@ -588,4 +588,12 @@ test('matching API: saved kundli vs typed details, recent list; language prefere
   assert.equal(lang.data.language, 'te');
   assert.equal((await api('GET', '/v1/clients/me', { token: ctx.w.token })).data.preferredLanguage, 'te');
   assert.equal((await api('PATCH', '/v1/clients/me/language', { token: ctx.w.token, body: { language: 'xx' } })).status, 400);
+
+  // Astrologers keep their own app language, separate from the languages they consult in
+  assert.equal((await api('GET', '/v1/astrologer/me', { token: ctx.astro })).data.appLanguage, 'en');
+  assert.equal((await api('PATCH', '/v1/astrologer/me/app-language', { token: ctx.astro, body: { language: 'hi' } })).data.language, 'hi');
+  const me = (await api('GET', '/v1/astrologer/me', { token: ctx.astro })).data;
+  assert.equal(me.appLanguage, 'hi');
+  assert.ok(me.languages.length >= 1, 'consultation languages untouched');
+  assert.equal((await api('PATCH', '/v1/astrologer/me/app-language', { token: ctx.customer, body: { language: 'hi' } })).status, 403);
 });

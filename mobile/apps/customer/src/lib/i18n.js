@@ -1,16 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { secureStorage } from '@astro/mobile-core';
 
-// App languages. Translations should be reviewed by native speakers before launch.
-export const LANGS = [
-  { code: 'en', native: 'English', label: 'English', short: 'ENG' },
-  { code: 'hi', native: 'हिंदी', label: 'Hindi' },
-  { code: 'te', native: 'తెలుగు', label: 'Telugu' },
-  { code: 'ta', native: 'தமிழ்', label: 'Tamil' },
-  { code: 'kn', native: 'ಕನ್ನಡ', label: 'Kannada' },
-  { code: 'mr', native: 'मराठी', label: 'Marathi' },
-  { code: 'bn', native: 'বাংলা', label: 'Bengali' },
-];
+import { I18nProvider as CoreI18nProvider, LANGS, useI18n, useT } from '@astro/mobile-core';
+
+// Customer-app strings. The shared provider, picker and language list live in @astro/mobile-core.
+// Translations should be reviewed by native speakers before launch.
+export { LANGS, useI18n, useT };
 
 const en = {
   'quick.match': 'Matching', 'tab.home': 'Home', 'tab.astrologers': 'Astrologers', 'tab.kundli': 'Kundli', 'tab.wallet': 'Wallet', 'tab.profile': 'Profile',
@@ -475,35 +468,7 @@ const bn = {
 };
 
 export const DICTIONARIES = { en, hi, te, ta, kn, mr, bn };
-const STORAGE_KEY = 'astro.customer.lang';
 
-const I18nContext = createContext({ lang: 'en', t: (k) => en[k] || k, setLang: () => {} });
-export const useI18n = () => useContext(I18nContext);
-export const useT = () => useContext(I18nContext).t;
-
-export function translate(lang, key, vars) {
-  let s = DICTIONARIES[lang]?.[key] ?? en[key] ?? key;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
-  return s;
-}
-
-/** Holds the app language. `onChange` lets the signed-in app save the choice to the account. */
 export function I18nProvider({ children }) {
-  const [lang, setLangState] = useState('en');
-  const [listeners] = useState(() => new Set());
-  useEffect(() => { secureStorage.get(STORAGE_KEY).then((v) => { if (v && DICTIONARIES[v]) setLangState(v); }).catch(() => {}); }, []);
-  const setLang = useCallback(async (code, { persistRemote = true } = {}) => {
-    if (!DICTIONARIES[code]) return;
-    setLangState(code);
-    await secureStorage.set(STORAGE_KEY, code).catch(() => {});
-    if (persistRemote) listeners.forEach((l) => l(code));
-  }, [listeners]);
-  const value = useMemo(() => ({
-    lang,
-    setLang,
-    t: (key, vars) => translate(lang, key, vars),
-    hasLocalChoice: () => secureStorage.get(STORAGE_KEY).then(Boolean).catch(() => false),
-    onChange: (l) => { listeners.add(l); return () => listeners.delete(l); },
-  }), [lang, setLang, listeners]);
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  return <CoreI18nProvider dictionaries={DICTIONARIES} storageKey="astro.customer.lang">{children}</CoreI18nProvider>;
 }

@@ -3,24 +3,11 @@ import { View, ActivityIndicator } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
-import { AuthProvider, ConsentGate, useAuth, ThemeContext, onNotificationTap } from '@astro/mobile-core';
+import { AuthProvider, ConsentGate, useAuth, ThemeContext, onNotificationTap, LanguageSync } from '@astro/mobile-core';
 import { api, routeFor } from '../lib/api.js';
 import { astrovedas as c } from '../lib/theme.js';
 import { BrandLogin } from '../components/BrandLogin.js';
 import { I18nProvider, useI18n } from '../lib/i18n.js';
-
-// Adopt the account's saved language on a new device, and save changes back to the account.
-function LanguageSync() {
-  const { api } = useAuth();
-  const { lang, setLang, onChange, hasLocalChoice } = useI18n();
-  useEffect(() => {
-    let live = true;
-    hasLocalChoice().then((local) => { if (!local) api.get('/clients/me').then((p) => { if (live && p.preferredLanguage && p.preferredLanguage !== lang) setLang(p.preferredLanguage, { persistRemote: false }); }).catch(() => {}); });
-    const off = onChange((code) => api.patch('/clients/me/language', { language: code }).catch(() => {}));
-    return () => { live = false; off(); };
-  }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
-  return null;
-}
 
 function Gate() {
   const { me } = useAuth();
@@ -29,7 +16,7 @@ function Gate() {
   if (!me) return <BrandLogin api={api} />;
   return (
     <ConsentGate>
-      <LanguageSync />
+      <LanguageSync load={() => api.get('/clients/me').then((p) => p.preferredLanguage)} save={(code) => api.patch('/clients/me/language', { language: code })} />
       <Stack screenOptions={{
         headerStyle: { backgroundColor: c.bg }, headerShadowVisible: false, headerTintColor: c.text,
         headerTitleStyle: { fontFamily: c.fonts.semibold, fontSize: 18 }, contentStyle: { backgroundColor: c.bg }, headerBackTitle: 'Back',

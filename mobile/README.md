@@ -27,6 +27,8 @@ Native mobile apps for the Astrology Consultation Platform, built with **React N
 
 **Astrologer (Jyotish Partner):** OTP login → dashboard with an **Online** switch and live request queue (accept/decline with countdown) → **consultation workspace** with a dedicated **☉ Birth Chart** button and Chat / Birth Chart tabs. Both panes stay mounted, so switching never interrupts the chat, timer or billing, and an unread badge shows new messages while the chart is open. The workspace also has a client summary, start/end controls and private notes. Plus: consultation history, availability slots, earnings ledger and payouts, profile onboarding (rates, ID upload from the phone, bank details, submit for verification), support and notifications.
 
+**App language (both apps):** English, Hindi, Telugu, Tamil, Kannada, Marathi and Bengali. In the astrologer app, change it from the login screen, the language button in the header, or Profile → App language. The interface language is separate from the languages an astrologer consults in. The choice is saved on the phone and to the account, so a new phone picks it up after sign-in. The shared provider, picker, login and consent strings live in `packages/core/src/i18n.js`; each app's own strings are in `src/lib/i18n.js`. Have native speakers review the translations before launch.
+
 ## Run on your phone (development)
 
 1. Install **Expo Go** from the Play Store or App Store.

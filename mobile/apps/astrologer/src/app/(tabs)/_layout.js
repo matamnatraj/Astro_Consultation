@@ -1,7 +1,7 @@
 import { Text, Pressable, View } from 'react-native';
 import { Tabs } from 'expo-router/tabs';
 import { router } from 'expo-router';
-import { useTheme, useUnreadNotifications } from '@astro/mobile-core';
+import { useTheme, useUnreadNotifications, useT, LanguageButton } from '@astro/mobile-core';
 
 const icon = (glyph) => ({ color }) => <Text style={{ color, fontSize: 20 }}>{glyph}</Text>;
 
@@ -18,16 +18,17 @@ function Bell() {
 
 export default function TabsLayout() {
   const c = useTheme();
+  const t = useT();
   return (
     <Tabs screenOptions={{
       tabBarActiveTintColor: c.primary, tabBarInactiveTintColor: c.muted, tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border },
-      headerStyle: { backgroundColor: c.surface }, headerTintColor: c.text, headerTitleStyle: { fontWeight: '700' }, headerRight: () => <Bell />,
+      headerStyle: { backgroundColor: c.surface }, headerTintColor: c.text, headerTitleStyle: { fontWeight: '700' }, headerRight: () => <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><LanguageButton /><Bell /></View>,
     }}>
-      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarLabel: 'Home', tabBarIcon: icon('⌂') }} />
-      <Tabs.Screen name="consultations" options={{ title: 'Consultations', tabBarLabel: 'Sessions', tabBarIcon: icon('◷') }} />
-      <Tabs.Screen name="availability" options={{ title: 'Availability', tabBarLabel: 'Slots', tabBarIcon: icon('▦') }} />
-      <Tabs.Screen name="earnings" options={{ title: 'Earnings', tabBarLabel: 'Earnings', tabBarIcon: icon('₹') }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarLabel: 'Profile', tabBarIcon: icon('☉') }} />
+      <Tabs.Screen name="index" options={{ title: t('tab.dashboard'), tabBarLabel: t('tab.home'), tabBarIcon: icon('⌂') }} />
+      <Tabs.Screen name="consultations" options={{ title: t('tab.consultations'), tabBarLabel: t('tab.sessions'), tabBarIcon: icon('◷') }} />
+      <Tabs.Screen name="availability" options={{ title: t('tab.availability'), tabBarLabel: t('tab.slots'), tabBarIcon: icon('▦') }} />
+      <Tabs.Screen name="earnings" options={{ title: t('tab.earnings'), tabBarLabel: t('tab.earnings'), tabBarIcon: icon('₹') }} />
+      <Tabs.Screen name="profile" options={{ title: t('tab.profile'), tabBarLabel: t('tab.profile'), tabBarIcon: icon('☉') }} />
     </Tabs>
   );
 }
