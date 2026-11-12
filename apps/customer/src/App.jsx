@@ -1,47 +1,55 @@
-import { NavLink, Route, Routes, Link, Navigate } from 'react-router-dom';
-import { AuthProvider, LoginScreen, ConsentGate, NotificationBell, AssistantWidget, useAuth, Avatar, useT, LanguageButton, LanguageSync } from '@astro/shared';
+import { NavLink, Route, Routes, Link, Navigate, useParams } from 'react-router-dom';
+import { AuthProvider, LoginScreen, ConsentGate, NotificationBell, AssistantWidget, useAuth, useT, LanguageButton, LanguageSync } from '@astro/shared';
 import { api } from './api.js';
 import { I18nProvider } from './i18n.js';
-import Matching, { MatchResult } from './pages/Matching.jsx';
+import { Icon, Logo, WalletPill, AstroAvatar, useWallet } from './brand.jsx';
 import Home from './pages/Home.jsx';
 import Astrologers from './pages/Astrologers.jsx';
 import AstrologerDetail from './pages/AstrologerDetail.jsx';
-import Book from './pages/Book.jsx';
+import Consult from './pages/Consult.jsx';
 import Bookings from './pages/Bookings.jsx';
 import BookingDetail from './pages/BookingDetail.jsx';
 import ConsultationRoom from './pages/ConsultationRoom.jsx';
-import Profile from './pages/Profile.jsx';
+import Rate from './pages/Rate.jsx';
+import Wallet from './pages/Wallet.jsx';
+import Kundli from './pages/Kundli.jsx';
+import Predictions from './pages/Predictions.jsx';
+import ProfileMenu from './pages/ProfileMenu.jsx';
+import Account from './pages/Profile.jsx';
+import Favorites from './pages/Favorites.jsx';
 import ChartPage from './pages/ChartPage.jsx';
 import Support from './pages/Support.jsx';
+import Matching, { MatchResult } from './pages/Matching.jsx';
 
-const NAV = [
-  ['/', 'nav.home', '⌂', 'nav.home'], ['/astrologers', 'nav.astrologers', '✦', 'nav.explore'], ['/matching', 'nav.matching', '♥', 'nav.match'], ['/bookings', 'nav.sessions', '◷', 'nav.sessionsShort'],
-  ['/profile', 'nav.profile', '☉', 'nav.profileShort'], ['/support', 'nav.support', '?', 'nav.support'],
-];
+const NAV = [['/', 'tab.home', 'home'], ['/astrologers', 'tab.astrologers', 'astro'], ['/kundli', 'tab.kundli', 'kundli'], ['/wallet', 'tab.wallet', 'wallet'], ['/profile', 'tab.profile', 'user']];
 
 const routeFor = (n) => {
-  if (n.data?.consultationId && ['consultation.started', 'consultation.ready', 'consultation.reminder'].includes(n.type)) return `/consultations/${n.data.consultationId}`;
+  if (n.data?.consultationId) return `/consultations/${n.data.consultationId}`;
+  if (n.type?.startsWith('wallet')) return '/wallet';
   if (n.data?.bookingId) return `/bookings/${n.data.bookingId}`;
-  if (n.data?.consultationId) return '/bookings';
   if (n.data?.ticketId) return '/support';
   return null;
 };
 
+const Brand = () => <span className="av-logo"><Logo />ASTROVEDAS</span>;
+const HeaderWallet = () => { const [balance] = useWallet(); return <WalletPill balancePaise={balance} compact />; };
+const BookRedirect = () => { const { astrologerId } = useParams(); return <Navigate to={`/consult/${astrologerId}`} replace />; };
+
 function Shell() {
-  const { me, logout } = useAuth();
+  const { me } = useAuth();
   const t = useT();
-  if (!me) return <LoginScreen api={api} role="customer" brand={<span className="row"><span className="brand-mark">✦</span>Jyotish Connect</span>} tagline={t('home.tagline')} />;
+  if (!me) return <LoginScreen api={api} role="customer" brand={<Brand />} tagline={t('login.tagline')} />;
   return (
     <ConsentGate>
       <LanguageSync load={() => api.get('/clients/me').then((p) => p.preferredLanguage)} save={(code) => api.patch('/clients/me/language', { language: code })} />
-      <header className="topbar">
-        <Link to="/" className="brand"><span className="brand-mark">✦</span><span className="hide-mobile">Jyotish Connect</span></Link>
-        <nav className="topnav">{NAV.map(([to, label]) => <NavLink key={to} to={to} end={to === '/'}>{t(label)}</NavLink>)}</nav>
-        <div className="user-menu" style={{ marginLeft: 'auto' }}>
+      <header className="topbar av-topbar">
+        <Link to="/" aria-label="Astrovedas home"><Brand /></Link>
+        <nav className="topnav av-topnav">{NAV.map(([to, label]) => <NavLink key={to} to={to} end={to === '/'}>{t(label)}</NavLink>)}</nav>
+        <div className="user-menu" style={{ marginLeft: 'auto', gap: 10 }}>
+          <HeaderWallet />
           <LanguageButton />
           <NotificationBell routeFor={routeFor} />
-          <Link to="/profile" aria-label="Profile"><Avatar name={me.user.displayName || 'You'} size={32} /></Link>
-          <button className="btn btn-ghost btn-sm hide-mobile" onClick={logout}>{t('core.signOut')}</button>
+          <Link to="/profile" aria-label={t('tab.profile')}><AstroAvatar name={me.user.displayName || 'You'} size={36} /></Link>
         </div>
       </header>
       <Routes>
@@ -52,21 +60,28 @@ function Shell() {
               <Route path="/" element={<Home />} />
               <Route path="/astrologers" element={<Astrologers />} />
               <Route path="/astrologers/:id" element={<AstrologerDetail />} />
-              <Route path="/book/:astrologerId" element={<Book />} />
+              <Route path="/consult/:astrologerId" element={<Consult />} />
+              <Route path="/book/:astrologerId" element={<BookRedirect />} />
               <Route path="/bookings" element={<Bookings />} />
               <Route path="/bookings/:id" element={<BookingDetail />} />
               <Route path="/history" element={<Navigate to="/bookings" replace />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/charts/:birthProfileId" element={<ChartPage />} />
-              <Route path="/support" element={<Support />} />
+              <Route path="/rate/:id" element={<Rate />} />
+              <Route path="/wallet" element={<Wallet />} />
+              <Route path="/kundli" element={<Kundli />} />
+              <Route path="/predictions" element={<Predictions />} />
               <Route path="/matching" element={<Matching />} />
               <Route path="/matching/:id" element={<MatchResult />} />
+              <Route path="/profile" element={<ProfileMenu />} />
+              <Route path="/account" element={<Account />} />
+              <Route path="/favorites" element={<Favorites />} />
+              <Route path="/charts/:birthProfileId" element={<ChartPage />} />
+              <Route path="/support" element={<Support />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
         } />
       </Routes>
-      <nav className="bottomnav">{NAV.map(([to, , ico, short]) => <NavLink key={to} to={to} end={to === '/'}><span className="ico">{ico}</span>{t(short)}</NavLink>)}</nav>
+      <nav className="bottomnav">{NAV.map(([to, label, ico]) => <NavLink key={to} to={to} end={to === '/'}><span className="ico"><Icon name={ico} size={21} /></span>{t(label)}</NavLink>)}</nav>
       <AssistantWidget />
     </ConsentGate>
   );

@@ -20,6 +20,8 @@ Native Android and iOS apps for customers and astrologers live in [`mobile/`](mo
 
 All five apps (customer, astrologer and admin websites, and the two mobile apps) have an app-language picker with English, Hindi, Telugu, Tamil, Kannada, Marathi and Bengali. Customers and astrologers have their choice saved to their account, so it follows them across the website and the phone; the admin console remembers it per browser. Shared strings and the picker live in `packages/shared/src/i18n.jsx` (web) and `mobile/packages/core/src/i18n.js` (mobile); each app's own strings are in its `src/i18n.js` or `src/lib/i18n.js`. The translations need a native-speaker review before launch.
 
+The customer website uses the same **Astrovedas** design as the customer mobile app (cream and saffron theme, Poppins): Home with promo banners and categories, astrologer search with a filter panel and favourites, profiles with stats and reviews, **wallet-paid consultations** (the amount is held, only used minutes are charged, the first consultation gets the welcome gift), a chat room with a live timer and amount, file sharing, extending the session from the wallet, viewing your kundli mid-chat, ratings with tags, the **VEDA Wallet** page with recharge packs and bonuses, Kundli, Predictions, Favourites and a Profile menu.
+
 Kundli matching (Ashtakoota guna milan out of 36, with doshas and Manglik for both people) is in the customer website (**Kundli Matching** in the menu) and the customer mobile app. Matches are saved under Recent matches and shared between the two.
 
 ## Quick start

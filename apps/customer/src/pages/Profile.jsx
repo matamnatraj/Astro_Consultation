@@ -16,7 +16,7 @@ export default function Profile() {
 
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>{t('nav.profile')}</h1><p>{t('profile.sub')}</p></div></div>
+      <div className="page-head"><div><h1>{t('profile.account')}</h1><p>{t('profile.sub')}</p></div></div>
       {profile.loading ? <Spinner /> : <PersonalCard profile={profile.data} onSaved={(p) => { profile.setData((d) => ({ ...d, ...p })); showToast(t('profile.saved')); }} />}
 
       <Card title={t('profile.births')} actions={<Button size="sm" onClick={() => setEditing('new')}>+ {t('profile.add')}</Button>}>

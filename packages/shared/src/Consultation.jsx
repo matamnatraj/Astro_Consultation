@@ -124,7 +124,7 @@ export function SessionTimer({ session, compact }) {
 }
 
 /** Chat pane. Stays mounted while hidden so the live connection and state persist. */
-export function ChatPane({ session, visible = true, placeholder, disabledReason }) {
+export function ChatPane({ session, visible = true, placeholder, disabledReason, composerStart }) {
   const tr = useT();
   const { consultation: c, messages, pending, typing, send, retry, notifyTyping, markRead, myUserId, connection } = session;
   const [text, setText] = useState('');
@@ -154,7 +154,7 @@ export function ChatPane({ session, visible = true, placeholder, disabledReason 
           ? <div key={m.messageId} className="msg-system">{m.content}</div>
           : (
             <div key={m.messageId} className={`msg ${m.senderUserId === myUserId ? 'mine' : 'theirs'}`}>
-              <div className="bubble">{m.content}</div>
+              <div className="bubble">{m.kind === 'file' && m.attachment ? <Attachment a={m.attachment} /> : m.content}</div>
               <div className="msg-meta">{fmtTime(m.createdAt)}{m.senderUserId === myUserId && <span className="tick">{m.readAt ? ' ✓✓' : ' ✓'}</span>}</div>
             </div>
           )))}
@@ -167,6 +167,7 @@ export function ChatPane({ session, visible = true, placeholder, disabledReason 
         {typing && <div className="typing"><span /><span /><span /></div>}
       </div>
       <form className="composer" onSubmit={submit}>
+        {composerStart}
         <textarea
           rows={1}
           value={text}
@@ -184,4 +185,11 @@ export function ChatPane({ session, visible = true, placeholder, disabledReason 
       </form>
     </div>
   );
+}
+
+/** A shared file in the chat: images show inline, other files as a download link. */
+function Attachment({ a }) {
+  const kb = a.sizeBytes > 1048576 ? `${(a.sizeBytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(a.sizeBytes / 1024))} KB`;
+  if (a.mimeType?.startsWith('image/') && a.url) return <a href={a.url} target="_blank" rel="noreferrer"><img className="attach-img" src={a.url} alt={a.fileName} /></a>;
+  return <a className="attach-file" href={a.url} target="_blank" rel="noreferrer">📎 {a.fileName} <span className="tiny">({kb})</span></a>;
 }

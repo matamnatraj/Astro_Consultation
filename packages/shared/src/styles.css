@@ -390,3 +390,5 @@ button.chip { cursor: pointer; font: inherit; font-size: 13px; padding: 5px 12px
 .koota:last-child { border-bottom: 0; }
 .koota-bar { height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
 .koota-bar span { display: block; height: 100%; border-radius: 4px; }
+.attach-file { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: underline; word-break: break-all; }
+.attach-img { max-width: 220px; max-height: 220px; border-radius: 10px; display: block; }
