@@ -7,6 +7,8 @@ import { config } from '../../config.js';
 import { assertConsents, currentPolicy, recordConsent } from '../content/service.js';
 import { loadConsultation, cancelBeforeStart, presentConsultation } from '../consultations/service.js';
 import { isUserOnline } from '../../realtime/hub.js';
+import { balanceOf, postEntry, welcomeDiscount } from '../wallet/service.js';
+import { confirmBooking } from './service.js';
 
 const r = Router();
 r.use(authenticate, requireRole('customer'));
@@ -35,10 +37,14 @@ r.get('/quote', async (req, res) => {
   const q = parse(z.object({
     astrologerId: z.string().uuid(), mode: z.enum(['chat', 'voice', 'video']).default('chat'),
     durationMinutes: z.coerce.number().int().min(5).max(120),
+    paymentMethod: z.enum(['gateway', 'wallet']).default('gateway'),
   }), req.query);
   const { ratePaise, amountPaise, policy } = await quote(q.astrologerId, q.mode, q.durationMinutes);
+  const gift = q.paymentMethod === 'wallet' ? await welcomeDiscount(null, req.clientId, ratePaise, q.durationMinutes) : { discountPaise: 0, label: null };
   res.json({
     ratePaise, durationMinutes: q.durationMinutes, amountPaise, currency: config.business.currency,
+    discountPaise: gift.discountPaise, discountLabel: gift.label, payablePaise: amountPaise - gift.discountPaise,
+    walletBalancePaise: await balanceOf(null, req.user.userId),
     billing: 'Charged per started minute, up to the booked duration. Unused minutes are released after the session.',
     cancellationPolicy: { version: policy.version, title: policy.title, body: policy.body, config: policy.config },
     enabledModes: ENABLED_MODES,
@@ -55,6 +61,7 @@ const createSchema = z.object({
   topic: z.string().trim().max(300).optional(),
   acceptedCancellationPolicyVersion: z.number().int(),
   idempotencyKey: z.string().min(8).max(80),
+  paymentMethod: z.enum(['gateway', 'wallet']).default('gateway'),
 });
 
 r.post('/', async (req, res) => {
@@ -86,16 +93,27 @@ r.post('/', async (req, res) => {
       const busy = await t.one(`SELECT 1 FROM consultations WHERE astrologer_id = $1 AND status = 'in_progress'`, [b.astrologerId]);
       if (busy) throw conflict('This astrologer is in another consultation. Try again shortly or schedule a session.');
     }
+    const wallet = b.paymentMethod === 'wallet';
+    const gift = wallet ? await welcomeDiscount(t, req.clientId, ratePaise, b.durationMinutes) : { discountPaise: 0, label: null };
     const row = await t.one(
       `INSERT INTO bookings (client_id, astrologer_id, birth_profile_id, mode, booking_type, slot_id, scheduled_at, duration_minutes,
-         rate_paise, quoted_amount_paise, currency, status, policy_version, topic, idempotency_key, payment_expires_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending_payment',$12,$13,$14, now() + make_interval(mins => $15)) RETURNING *`,
+         rate_paise, quoted_amount_paise, currency, status, policy_version, topic, idempotency_key, payment_expires_at,
+         payment_method, discount_paise, discount_label)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending_payment',$12,$13,$14, now() + make_interval(mins => $15),$16,$17,$18) RETURNING *`,
       [req.clientId, b.astrologerId, b.birthProfileId, b.mode, b.bookingType, b.slotId || null, scheduledAt, b.durationMinutes,
-       ratePaise, amountPaise, config.business.currency, policy.version, b.topic || null, b.idempotencyKey, config.payments.paymentWindowMin],
+       ratePaise, amountPaise, config.business.currency, policy.version, b.topic || null, b.idempotencyKey, config.payments.paymentWindowMin,
+       b.paymentMethod, gift.discountPaise, gift.label],
     );
     // Store the accepted cancellation policy version with the booking context.
     await recordConsent(t, { userId: req.user.userId, noticeType: 'cancellation_policy', version: policy.version,
       context: `booking:${row.booking_id}`, ip: req.ip, userAgent: req.headers['user-agent'] });
+    if (wallet) {
+      // Hold the payable amount from the wallet now; unused minutes are released when the session ends.
+      await postEntry(t, { userId: req.user.userId, type: 'hold', amountPaise: -(amountPaise - gift.discountPaise), bookingId: row.booking_id,
+        description: `Held for consultation (${b.durationMinutes} min)` });
+      await confirmBooking(t, row.booking_id, { paidVia: 'wallet' });
+      return { ...row, status: 'confirmed' };
+    }
     return row;
   });
   res.status(201).json(presentBooking(booking));
@@ -107,7 +125,8 @@ export function presentBooking(b) {
     bookingType: b.booking_type, slotId: b.slot_id, scheduledAt: b.scheduled_at, durationMinutes: b.duration_minutes,
     ratePaise: b.rate_paise, quotedAmountPaise: b.quoted_amount_paise, currency: b.currency, status: b.status,
     policyVersion: b.policy_version, topic: b.topic, cancelReason: b.cancel_reason, paymentExpiresAt: b.payment_expires_at,
-    createdAt: b.created_at,
+    paymentMethod: b.payment_method, discountPaise: b.discount_paise, discountLabel: b.discount_label,
+    payablePaise: b.quoted_amount_paise - b.discount_paise, createdAt: b.created_at,
   };
 }
 

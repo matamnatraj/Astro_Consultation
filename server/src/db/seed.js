@@ -32,11 +32,11 @@ const ASTROLOGERS = [
     'Third-generation Vedic astrologer from Varanasi with 18 years of practice. Focus on career timing using Vimshottari dasha, marriage compatibility and practical, grounded guidance.'],
   ['Dr. Meera Iyer', '+919800000002', 12, ['English', 'Tamil', 'Malayalam'], ['Vedic', 'Health', 'Education', 'Nakshatra'], 2500,
     'Jyotish practitioner and researcher trained in the Parashari tradition. Known for clear explanations of nakshatras and planetary periods, especially for education and life transitions.'],
-  ['Pandit Arjun Joshi', '+919800000003', 25, ['Hindi', 'Gujarati', 'Marathi'], ['Vedic', 'Finance', 'Business', 'Muhurta'], 4500,
+  ['Pandit Arjun Joshi', '+919800000003', 25, ['Hindi', 'Gujarati', 'Marathi'], ['Vedic', 'Finance', 'Business', 'Property', 'Muhurta'], 4500,
     'Senior astrologer specialising in business and finance timing, muhurta selection and annual forecasts. Practising since 1999 in Ahmedabad.'],
-  ['Sana Kapoor', '+919800000004', 7, ['English', 'Hindi', 'Punjabi'], ['Western', 'Relationships', 'Tarot', 'Career'], 1800,
+  ['Sana Kapoor', '+919800000004', 7, ['English', 'Hindi', 'Punjabi'], ['Western', 'Love', 'Relationships', 'Tarot', 'Career'], 1800,
     'Combines Vedic and Western techniques to offer empathetic relationship and career guidance. Certified tarot reader with seven years of consultations.'],
-  ['Jyotishi Kavya Rao', '+919800000005', 9, ['Telugu', 'Kannada', 'English'], ['Vedic', 'Marriage', 'Family', 'Remedies'], 2200,
+  ['Jyotishi Kavya Rao', '+919800000005', 9, ['Telugu', 'Kannada', 'English'], ['Vedic', 'Love', 'Marriage', 'Family', 'Remedies'], 2200,
     'Family and marriage consultations rooted in classical Jyotish, with practical, non-fear-based suggestions. Based in Hyderabad.'],
 ];
 
@@ -106,6 +106,8 @@ export async function seed() {
     );
     await t.query(`INSERT INTO birth_profile_versions (birth_profile_id, version, snapshot) VALUES ($1,1,$2)`, [bp.birth_profile_id, { seeded: true }]);
     await generateChart(t, bp, {});
+    // Demo wallet credit so the wallet flow can be tried immediately (development seed only).
+    await t.query(`INSERT INTO wallet_transactions (user_id, type, amount_paise, balance_after_paise, description) VALUES ($1,'bonus',50000,50000,'Demo credit')`, [cu.user_id]);
 
     await t.query(`INSERT INTO announcements (kind, title, body, audience, status, published_at) VALUES
       ('banner','Welcome to the platform','Your first 5 minutes with any astrologer are on us during launch week (demo banner).','customers','published',now()),

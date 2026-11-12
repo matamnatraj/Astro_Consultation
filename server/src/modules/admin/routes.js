@@ -11,6 +11,7 @@ import { loadConsultation, cancelBeforeStart, presentConsultation, presentMessag
 import { refundCaptured } from '../payments/service.js';
 import { rupees } from '../../lib/money.js';
 import { REPORTS, toCsv } from './reports.js';
+import { balanceOf, postEntry, presentTxn } from '../wallet/service.js';
 
 const r = Router();
 r.use(authenticate, requireRole('admin'));
@@ -77,12 +78,31 @@ r.get('/customers/:userId', perm('customers.view'), async (req, res) => {
     one('SELECT count(*)::int AS n FROM birth_profiles WHERE client_id = $1 AND archived_at IS NULL', [u.client_id]),
   ]);
   await audit(null, { actor: actorOf(req), action: 'admin.customer.view', targetType: 'user', targetId: u.user_id, ip: req.ip });
+  const [walletBalance, walletTxns] = await Promise.all([
+    balanceOf(null, u.user_id),
+    many('SELECT * FROM wallet_transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [u.user_id]),
+  ]);
   res.json({
     userId: u.user_id, phone: u.phone, email: u.email, status: u.status, createdAt: u.created_at, lastLoginAt: u.last_login_at,
     fullName: u.full_name, gender: u.gender, preferredLanguage: u.preferred_language,
     birthProfileCount: birthProfiles.n, // birth details are deliberately not exposed in the admin console
     bookings, tickets, consents,
+    wallet: { balancePaise: walletBalance, transactions: walletTxns.map(presentTxn) },
   });
+});
+
+// Support/finance goodwill credit or correction on a customer's wallet (audited ledger entry).
+r.post('/customers/:userId/wallet-adjust', perm('payments.refund'), async (req, res) => {
+  const b = parse(z.object({ amountPaise: z.number().int().refine((v) => v !== 0 && Math.abs(v) <= 10000000), reason: z.string().trim().min(3).max(200) }), req.body);
+  const entry = await tx(async (t) => {
+    const u = await t.one(`SELECT user_id FROM user_accounts WHERE user_id = $1 AND role = 'customer'`, [req.params.userId]);
+    if (!u) throw notFound('Customer');
+    const e = await postEntry(t, { userId: u.user_id, type: b.amountPaise > 0 ? 'refund' : 'adjustment', amountPaise: b.amountPaise, description: b.reason, createdBy: req.user.userId });
+    await audit(t, { actor: req.user, action: 'admin.wallet.adjust', targetType: 'user', targetId: u.user_id, context: b, ip: req.ip });
+    await notify(t, u.user_id, { type: 'wallet.adjusted', title: b.amountPaise > 0 ? 'Wallet credited' : 'Wallet adjusted', body: `${b.amountPaise > 0 ? '+' : '−'}₹${rupees(Math.abs(b.amountPaise))}: ${b.reason}`, data: { wallet: true } });
+    return e;
+  });
+  res.status(201).json(presentTxn(entry));
 });
 
 r.post('/customers/:userId/status', perm('customers.manage'), async (req, res) => {
@@ -216,8 +236,11 @@ r.post('/bookings/:id/cancel', perm('bookings.manage'), async (req, res) => {
 r.get('/payments', perm('payments.view'), async (req, res) => {
   const { limit, offset } = page(req.query);
   res.json(await many(
-    `SELECT p.*, cp.full_name AS client_name, a.display_name AS astrologer_name FROM payment_transactions p
-     JOIN bookings b USING (booking_id) JOIN client_profiles cp USING (client_id) JOIN astrologer_profiles a USING (astrologer_id)
+    `SELECT p.*, COALESCE(cp.full_name, ru.display_name, ru.phone) AS client_name,
+            CASE WHEN p.purpose = 'wallet_recharge' THEN 'Wallet recharge' ELSE a.display_name END AS astrologer_name
+     FROM payment_transactions p
+     LEFT JOIN bookings b ON b.booking_id = p.booking_id LEFT JOIN client_profiles cp ON cp.client_id = b.client_id
+     LEFT JOIN astrologer_profiles a ON a.astrologer_id = b.astrologer_id LEFT JOIN user_accounts ru ON ru.user_id = p.user_id
      WHERE ($1::text IS NULL OR p.status = $1) ORDER BY p.created_at DESC LIMIT $2 OFFSET $3`, [req.query.status || null, limit, offset],
   ));
 });
@@ -228,10 +251,12 @@ r.post('/payments/:id/refund', perm('payments.refund'), async (req, res) => {
     const p = await t.one('SELECT * FROM payment_transactions WHERE transaction_id = $1 FOR UPDATE', [req.params.id]);
     if (!p) throw notFound('Payment');
     if (!['captured', 'partially_refunded'].includes(p.status)) throw conflict(`Cannot refund a ${p.status} payment`);
+    if (p.purpose === 'wallet_recharge') throw conflict('Wallet recharges are refunded by adjusting the customer wallet (Customers → Wallet), so the balance stays consistent');
     if (b.amountPaise > p.captured_paise - p.refunded_paise) throw badRequest(`Maximum refundable is ₹${rupees(p.captured_paise - p.refunded_paise)}`);
     const rf = await refundCaptured(t, p, b.amountPaise, { reason: b.reason, initiatedBy: req.user.userId });
     await audit(t, { actor: req.user, action: 'admin.payment.refund', targetType: 'payment', targetId: p.transaction_id, context: { amountPaise: b.amountPaise, reason: b.reason }, ip: req.ip });
     const owner = await t.one('SELECT cp.user_id FROM bookings b JOIN client_profiles cp USING (client_id) WHERE booking_id = $1', [p.booking_id]);
+    void owner;
     await notify(t, owner.user_id, { type: 'payment.refund', title: 'Refund processed', body: `₹${rupees(b.amountPaise)} has been refunded to your original payment method.`, data: { bookingId: p.booking_id }, channels: ['in_app', 'push', 'email'] });
     return rf;
   });

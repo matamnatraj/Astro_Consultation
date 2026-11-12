@@ -7,10 +7,15 @@ import { audit } from '../../lib/audit.js';
 import { publishToRoom } from '../../realtime/hub.js';
 import { rateLimit } from '../../lib/rateLimit.js';
 import {
-  loadConsultation, participantRole, presentConsultation, presentMessage, accept, start, complete, cancelBeforeStart,
+  loadConsultation, participantRole, presentConsultation, presentMessage, accept, start, complete, cancelBeforeStart, systemMessage,
 } from './service.js';
 import { latestChart, generateChart, presentChart } from '../charts/service.js';
 import { presentBirth } from '../clients/routes.js';
+import { putObject } from '../files/storage.js';
+import { postEntry } from '../wallet/service.js';
+import { REVIEW_TAGS } from '../content/appConfig.js';
+import { rupees } from '../../lib/money.js';
+import { badRequest } from '../../lib/errors.js';
 
 const r = Router();
 r.use(authenticate);
@@ -229,15 +234,18 @@ r.post('/:id/notes', requireRole('astrologer'), async (req, res) => {
 
 // ───────────── Reviews & receipt (customer) ─────────────
 r.post('/:id/review', requireRole('customer'), async (req, res) => {
-  const b = parse(z.object({ rating: z.number().int().min(1).max(5), comment: z.string().trim().max(1000).optional() }), req.body);
+  const b = parse(z.object({
+    rating: z.number().int().min(1).max(5), comment: z.string().trim().max(1000).optional(),
+    tags: z.array(z.enum(REVIEW_TAGS)).max(8).default([]),
+  }), req.body);
   const review = await tx(async (t) => {
     const { c } = await forParticipant(req, true, t);
     if (c.status !== 'completed') throw conflict('You can review only completed consultations');
     const exists = await t.one('SELECT 1 FROM reviews WHERE consultation_id = $1', [c.consultation_id]);
     if (exists) throw conflict('You have already reviewed this consultation');
     const row = await t.one(
-      'INSERT INTO reviews (consultation_id, client_id, astrologer_id, rating, comment) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [c.consultation_id, c.client_id, c.astrologer_id, b.rating, b.comment || null],
+      'INSERT INTO reviews (consultation_id, client_id, astrologer_id, rating, comment, tags) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [c.consultation_id, c.client_id, c.astrologer_id, b.rating, b.comment || null, b.tags],
     );
     await t.query(
       `UPDATE astrologer_profiles a SET rating_avg = s.avg, rating_count = s.n FROM
@@ -265,6 +273,51 @@ r.get('/:id/receipt', async (req, res) => {
     payments, refunds,
     note: 'Taxes and invoice format to be confirmed with finance/tax professionals before launch.',
   });
+});
+
+
+// ───────────── Attachments (images / PDFs shared during a live session) ─────────────
+const ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+r.post('/:id/attachments', rateLimit('attach', 20, 600, (req) => req.user.userId), async (req, res) => {
+  const b = parse(z.object({
+    fileName: z.string().trim().min(1).max(120), mimeType: z.enum(ATTACHMENT_TYPES), contentBase64: z.string().min(10),
+  }), req.body);
+  const c = await loadConsultation(null, req.params.id);
+  const role = participantRole(c, req.user);
+  if (c.status !== 'in_progress') throw conflict('Files can be shared only while the consultation is in progress');
+  const buf = Buffer.from(b.contentBase64, 'base64');
+  if (buf.length > 5 * 1024 * 1024) throw badRequest('File must be 5 MB or smaller');
+  const storageKey = await putObject(buf);
+  const attachment = { fileName: b.fileName.replace(/[^\w.\- ]/g, '_'), mimeType: b.mimeType, sizeBytes: buf.length, storageKey };
+  const m = await one(
+    `INSERT INTO messages (consultation_id, sender_user_id, sender_role, kind, content, attachment) VALUES ($1,$2,$3,'file',$4,$5) RETURNING *`,
+    [c.consultation_id, req.user.userId, role, attachment.fileName, attachment],
+  );
+  const msg = presentMessage(m);
+  publishToRoom(c.consultation_id, { type: 'message', message: msg });
+  res.status(201).json(msg);
+});
+
+// ───────────── Extend a live wallet-paid session ─────────────
+r.post('/:id/extend', requireRole('customer'), async (req, res) => {
+  const { minutes } = parse(z.object({ minutes: z.number().int().refine((m) => [5, 10, 15, 20, 30].includes(m), 'Choose 5, 10, 15, 20 or 30 minutes') }), req.body);
+  const out = await tx(async (t) => {
+    const { c } = await forParticipant(req, true, t);
+    if (c.status !== 'in_progress') throw conflict('Only a live consultation can be extended');
+    if (c.payment_method !== 'wallet') throw conflict('Only wallet-paid consultations can be extended');
+    if (c.duration_minutes + minutes > 120) throw badRequest('Consultations can last at most 120 minutes');
+    const extra = c.rate_paise * minutes;
+    await postEntry(t, { userId: c.client_user_id, type: 'hold', amountPaise: -extra, bookingId: c.booking_id, description: `Extended consultation by ${minutes} min` });
+    await t.query('UPDATE bookings SET duration_minutes = duration_minutes + $2, quoted_amount_paise = quoted_amount_paise + $3, updated_at = now() WHERE booking_id = $1',
+      [c.booking_id, minutes, extra]);
+    const row = await t.one('UPDATE consultations SET max_billable_seconds = max_billable_seconds + $2, updated_at = now() WHERE consultation_id = $1 RETURNING *',
+      [c.consultation_id, minutes * 60]);
+    await systemMessage(t, c.consultation_id, `Session extended by ${minutes} minutes (₹${rupees(extra)} held from wallet).`);
+    const full = { ...c, ...row, duration_minutes: c.duration_minutes + minutes, quoted_amount_paise: c.quoted_amount_paise + extra };
+    t.afterCommit(() => publishToRoom(c.consultation_id, { type: 'consultation.state', consultation: presentConsultation(full) }));
+    return full;
+  });
+  res.json(presentConsultation(out, 'customer'));
 });
 
 export default r;

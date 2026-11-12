@@ -389,3 +389,171 @@ test('mobile: device registration for push, app-scheme payment return', async ()
   assert.equal(res.headers.get('location'), 'astrocustomer://payment-result?payment=success');
   assert.ok(slot);
 });
+
+// ─────────────── Wallet (VEDA Wallet), welcome gift, favorites, filters, attachments ───────────────
+async function newCustomer(phone, name) {
+  const s = await login(phone, 'customer', name);
+  const t = s.accessToken;
+  const pending = await api('GET', '/v1/consents/pending', { token: t });
+  await api('POST', '/v1/consents', { token: t, body: { accept: pending.data.map((p) => ({ noticeType: p.noticeType, version: p.version })) } });
+  const bp = await api('POST', '/v1/clients/me/birth-profiles', { token: t, body: {
+    fullName: name, birthDate: '1992-01-10', birthTime: '08:15', timeAccuracy: 'exact', placeName: 'Chennai, Tamil Nadu, India',
+    latitude: 13.0827, longitude: 80.2707, tzName: 'Asia/Kolkata', placeConfirmed: true,
+  } });
+  return { token: t, birthProfileId: bp.data.birthProfileId };
+}
+
+async function recharge(token, amountPaise) {
+  const r = await api('POST', '/v1/wallet/recharge', { token, body: { amountPaise, returnUrl: 'astrocustomer://wallet' } });
+  assert.equal(r.status, 201, JSON.stringify(r.data));
+  const res = await fetch(`${base}/mockpay/checkout/${r.data.orderId}/complete`, {
+    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: `outcome=success&returnUrl=${encodeURIComponent('astrocustomer://wallet')}`, redirect: 'manual',
+  });
+  assert.equal(res.status, 303);
+  return r.data;
+}
+
+test('wallet: recharge with pack bonus credits the ledger', async () => {
+  ctx.w = await newCustomer('+919933334444', 'Ravi Kumar');
+  const before = await api('GET', '/v1/wallet', { token: ctx.w.token });
+  assert.equal(before.data.balancePaise, 0);
+  assert.ok(before.data.packs.length >= 4);
+  const r = await recharge(ctx.w.token, 50000); // ₹500 pack → 10% bonus
+  assert.equal(r.bonusPaise, 5000);
+  const after = await api('GET', '/v1/wallet', { token: ctx.w.token });
+  assert.equal(after.data.balancePaise, 55000);
+  assert.deepEqual(after.data.transactions.map((t) => t.type).sort(), ['bonus', 'recharge']);
+  const bad = await api('POST', '/v1/wallet/recharge', { token: ctx.w.token, body: { amountPaise: 100 } });
+  assert.equal(bad.status, 400);
+});
+
+test('wallet booking: welcome gift, instant confirm, hold → charge → release', async () => {
+  const astroWs = await openSocket(ctx.astro);
+  await api('PUT', '/v1/astrologer/me/online', { token: ctx.astro, body: { isOnline: true } });
+  const q = await api('GET', `/v1/bookings/quote?astrologerId=${ctx.astrologerId}&mode=chat&durationMinutes=10&paymentMethod=wallet`, { token: ctx.w.token });
+  assert.equal(q.data.amountPaise, 30000);
+  assert.equal(q.data.discountPaise, 6000); // 2 free minutes on first consultation
+  assert.equal(q.data.payablePaise, 24000);
+  assert.equal(q.data.walletBalancePaise, 55000);
+
+  const book = await api('POST', '/v1/bookings', { token: ctx.w.token, body: {
+    astrologerId: ctx.astrologerId, birthProfileId: ctx.w.birthProfileId, mode: 'chat', bookingType: 'instant', durationMinutes: 10,
+    acceptedCancellationPolicyVersion: 1, idempotencyKey: 'test-wallet-0001', paymentMethod: 'wallet',
+  } });
+  assert.equal(book.status, 201, JSON.stringify(book.data));
+  assert.equal(book.data.status, 'confirmed'); // no gateway step
+  assert.equal(book.data.discountLabel, 'Welcome Gift (2 min free)');
+  const w1 = await api('GET', '/v1/wallet', { token: ctx.w.token });
+  assert.equal(w1.data.balancePaise, 55000 - 24000);
+
+  const b = await api('GET', `/v1/bookings/${book.data.bookingId}`, { token: ctx.w.token });
+  const cid = b.data.consultation.consultationId;
+  await api('POST', `/v1/consultations/${cid}/accept`, { token: ctx.astro });
+  await api('POST', `/v1/consultations/${cid}/start`, { token: ctx.astro });
+
+  // Attachment during the live session
+  const pdf = Buffer.from('%PDF-1.4\n% test birth details\n').toString('base64');
+  const att = await api('POST', `/v1/consultations/${cid}/attachments`, { token: ctx.w.token, body: { fileName: 'My_Birth_Details.pdf', mimeType: 'application/pdf', contentBase64: pdf } });
+  assert.equal(att.status, 201, JSON.stringify(att.data));
+  assert.equal(att.data.kind, 'file');
+  const fileUrl = att.data.attachment.url;
+  const file = await fetch(fileUrl.startsWith('http') ? fileUrl : base + fileUrl);
+  assert.equal(file.status, 200);
+  assert.match(await file.text(), /^%PDF/);
+  const exe = await api('POST', `/v1/consultations/${cid}/attachments`, { token: ctx.w.token, body: { fileName: 'x.exe', mimeType: 'application/x-msdownload', contentBase64: pdf } });
+  assert.equal(exe.status, 400);
+
+  const ended = await api('POST', `/v1/consultations/${cid}/end`, { token: ctx.w.token });
+  assert.equal(ended.data.finalAmountPaise, 3000); // 1 billed minute (astrologer is paid for it)
+  assert.equal(ended.data.chargedPaise, 0); // covered by the welcome gift
+  const w2 = await api('GET', '/v1/wallet', { token: ctx.w.token });
+  assert.equal(w2.data.balancePaise, 55000);
+  const ledger = await query('SELECT gross_paise FROM commission_ledger WHERE consultation_id = $1', [cid]);
+  assert.equal(ledger.rows[0].gross_paise, 3000);
+
+  const review = await api('POST', `/v1/consultations/${cid}/review`, { token: ctx.w.token, body: { rating: 4, comment: 'Good', tags: ['Knowledgeable', 'Polite'] } });
+  assert.equal(review.status, 201);
+  const badTag = await api('POST', `/v1/consultations/${cid}/review`, { token: ctx.w.token, body: { rating: 4, tags: ['Bogus'] } });
+  assert.equal(badTag.status, 400);
+  const prof = await api('GET', `/v1/astrologers/${ctx.astrologerId}`, { token: ctx.w.token });
+  assert.ok(prof.data.topTags.some((t) => t.tag === 'Knowledgeable'));
+  ctx.astroWs = astroWs;
+});
+
+test('wallet: no repeat gift, extend from wallet, insufficient balance, cancel refunds wallet', async () => {
+  const q = await api('GET', `/v1/bookings/quote?astrologerId=${ctx.astrologerId}&mode=chat&durationMinutes=10&paymentMethod=wallet`, { token: ctx.w.token });
+  assert.equal(q.data.discountPaise, 0);
+
+  const tooBig = await api('POST', '/v1/bookings', { token: ctx.w.token, body: {
+    astrologerId: ctx.astrologerId, birthProfileId: ctx.w.birthProfileId, mode: 'chat', bookingType: 'instant', durationMinutes: 120,
+    acceptedCancellationPolicyVersion: 1, idempotencyKey: 'test-wallet-0002', paymentMethod: 'wallet',
+  } });
+  assert.equal(tooBig.status, 409);
+  assert.equal(tooBig.data.error.details.code, 'insufficient_balance');
+  assert.equal((await api('GET', '/v1/wallet', { token: ctx.w.token })).data.balancePaise, 55000, 'failed booking must not touch the wallet');
+
+  const book = await api('POST', '/v1/bookings', { token: ctx.w.token, body: {
+    astrologerId: ctx.astrologerId, birthProfileId: ctx.w.birthProfileId, mode: 'chat', bookingType: 'instant', durationMinutes: 5,
+    acceptedCancellationPolicyVersion: 1, idempotencyKey: 'test-wallet-0003', paymentMethod: 'wallet',
+  } });
+  assert.equal(book.status, 201, JSON.stringify(book.data));
+  const cid = (await api('GET', `/v1/bookings/${book.data.bookingId}`, { token: ctx.w.token })).data.consultation.consultationId;
+  await api('POST', `/v1/consultations/${cid}/accept`, { token: ctx.astro });
+  await api('POST', `/v1/consultations/${cid}/start`, { token: ctx.astro });
+  const ext = await api('POST', `/v1/consultations/${cid}/extend`, { token: ctx.w.token, body: { minutes: 5 } });
+  assert.equal(ext.status, 200, JSON.stringify(ext.data));
+  assert.equal(ext.data.maxBillableSeconds, 600);
+  assert.equal((await api('GET', '/v1/wallet', { token: ctx.w.token })).data.balancePaise, 55000 - 30000);
+  const ended = await api('POST', `/v1/consultations/${cid}/end`, { token: ctx.w.token });
+  assert.equal(ended.data.chargedPaise, 3000);
+  assert.equal((await api('GET', '/v1/wallet', { token: ctx.w.token })).data.balancePaise, 52000);
+
+  // Cancel before acceptance → full refund to wallet
+  const b3 = await api('POST', '/v1/bookings', { token: ctx.w.token, body: {
+    astrologerId: ctx.astrologerId, birthProfileId: ctx.w.birthProfileId, mode: 'chat', bookingType: 'instant', durationMinutes: 10,
+    acceptedCancellationPolicyVersion: 1, idempotencyKey: 'test-wallet-0004', paymentMethod: 'wallet',
+  } });
+  assert.equal((await api('GET', '/v1/wallet', { token: ctx.w.token })).data.balancePaise, 52000 - 30000);
+  const cancel = await api('POST', `/v1/bookings/${b3.data.bookingId}/cancel`, { token: ctx.w.token, body: { reason: 'Changed mind' } });
+  assert.equal(cancel.data.feePaise, 0);
+  assert.equal((await api('GET', '/v1/wallet', { token: ctx.w.token })).data.balancePaise, 52000);
+  ctx.astroWs.close();
+});
+
+test('discovery: favorites, multi-language/speciality, experience and price filters', async () => {
+  const fav = await api('PUT', `/v1/astrologers/${ctx.astrologerId}/favorite`, { token: ctx.w.token });
+  assert.equal(fav.data.isFavorite, true);
+  const favs = await api('GET', '/v1/astrologers?favorites=true', { token: ctx.w.token });
+  assert.deepEqual(favs.data.map((a) => a.astrologerId), [ctx.astrologerId]);
+  assert.equal(favs.data[0].isFavorite, true);
+  await api('DELETE', `/v1/astrologers/${ctx.astrologerId}/favorite`, { token: ctx.w.token });
+  assert.equal((await api('GET', '/v1/astrologers?favorites=true', { token: ctx.w.token })).data.length, 0);
+
+  const tamil = await api('GET', '/v1/astrologers?language=Tamil,Gujarati', { token: ctx.w.token });
+  assert.deepEqual(tamil.data.map((a) => a.displayName).sort(), ['Dr. Meera Iyer', 'Pandit Arjun Joshi']);
+  const love = await api('GET', '/v1/astrologers?specialty=Love', { token: ctx.w.token });
+  assert.ok(love.data.length >= 2 && love.data.every((a) => a.specialties.includes('Love')));
+  const senior = await api('GET', '/v1/astrologers?minExp=15', { token: ctx.w.token });
+  assert.ok(senior.data.every((a) => a.experienceYears >= 15));
+  const cheap = await api('GET', '/v1/astrologers?maxRate=2500&sort=price_asc', { token: ctx.w.token });
+  assert.ok(cheap.data.every((a) => a.rates.chat <= 2500));
+  const cfg = await api('GET', '/v1/config');
+  assert.equal(cfg.data.walletName, 'VEDA Wallet');
+});
+
+test('admin: wallet adjustment is audited; recharge cannot be card-refunded', async () => {
+  const admin = await login('admin@astro.local', 'admin');
+  const me = await api('GET', '/v1/me', { token: ctx.w.token });
+  const adj = await api('POST', `/v1/admin/customers/${me.data.user.userId}/wallet-adjust`, { token: admin.accessToken, body: { amountPaise: 2500, reason: 'Goodwill for delay' } });
+  assert.equal(adj.status, 201, JSON.stringify(adj.data));
+  assert.equal((await api('GET', '/v1/wallet', { token: ctx.w.token })).data.balancePaise, 54500);
+  const over = await api('POST', `/v1/admin/customers/${me.data.user.userId}/wallet-adjust`, { token: admin.accessToken, body: { amountPaise: -999999, reason: 'Too much' } });
+  assert.equal(over.status, 409);
+  const detail = await api('GET', `/v1/admin/customers/${me.data.user.userId}`, { token: admin.accessToken });
+  assert.equal(detail.data.wallet.balancePaise, 54500);
+  const rp = (await query(`SELECT transaction_id FROM payment_transactions WHERE purpose = 'wallet_recharge' LIMIT 1`)).rows[0];
+  const refund = await api('POST', `/v1/admin/payments/${rp.transaction_id}/refund`, { token: admin.accessToken, body: { amountPaise: 1000, reason: 'test' } });
+  assert.equal(refund.status, 409);
+  const payments = await api('GET', '/v1/admin/payments', { token: admin.accessToken });
+  assert.ok(payments.data.some((p) => p.purpose === 'wallet_recharge'));
+});

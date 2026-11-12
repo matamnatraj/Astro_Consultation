@@ -6,6 +6,8 @@ import { notify } from '../notifications/service.js';
 import { publishToRoom } from '../../realtime/hub.js';
 import { paymentForBooking, captureOrVoid, createEarning } from '../payments/service.js';
 import { cancellationRefundPct } from '../content/service.js';
+import { heldForBooking, postEntry } from '../wallet/service.js';
+import { signedUrl } from '../files/storage.js';
 
 /**
  * Consultation state machine (DPR §4):
@@ -33,7 +35,7 @@ export const ACTIVE_STATUSES = ['accepted', 'ready', 'in_progress'];
 export async function loadConsultation(t, id, lock = false) {
   const c = await db(t).one(
     `SELECT c.*, b.mode, b.booking_type, b.scheduled_at, b.rate_paise, b.quoted_amount_paise, b.birth_profile_id, b.policy_version,
-            b.duration_minutes, b.topic, b.slot_id, b.status AS booking_status,
+            b.duration_minutes, b.topic, b.slot_id, b.status AS booking_status, b.payment_method, b.discount_paise, b.discount_label,
             cu.user_id AS client_user_id, au.user_id AS astrologer_user_id,
             cp.full_name AS client_name, ap.display_name AS astrologer_name
      FROM consultations c JOIN bookings b USING (booking_id)
@@ -77,6 +79,10 @@ export function presentConsultation(c, viewerRole) {
     maxBillableSeconds: c.max_billable_seconds,
     billableSeconds: c.billable_seconds,
     finalAmountPaise: c.final_amount_paise,
+    paymentMethod: c.payment_method,
+    discountPaise: c.discount_paise || 0,
+    discountLabel: c.discount_label || null,
+    chargedPaise: c.charged_paise ?? (c.final_amount_paise != null ? c.final_amount_paise : null),
     client: { clientId: c.client_id, name: c.client_name },
     astrologer: { astrologerId: c.astrologer_id, name: c.astrologer_name },
     viewerRole,
@@ -97,6 +103,10 @@ export const presentMessage = (m) => ({
   messageId: m.message_id, seq: m.seq, consultationId: m.consultation_id, senderUserId: m.sender_user_id,
   senderRole: m.sender_role, kind: m.kind, content: m.content, clientMsgId: m.client_msg_id,
   createdAt: m.created_at, deliveredAt: m.delivered_at, readAt: m.read_at,
+  attachment: m.attachment ? {
+    fileName: m.attachment.fileName, mimeType: m.attachment.mimeType, sizeBytes: m.attachment.sizeBytes,
+    url: signedUrl(m.attachment.storageKey, m.attachment.mimeType, 1800),
+  } : null,
 });
 
 async function setStatus(t, c, to, extra = {}) {
@@ -170,14 +180,24 @@ export async function complete(t, c, { endedBy, reason }) {
     billable_seconds: billable, final_amount_paise: amount,
   });
   await t.query(`UPDATE bookings SET status = 'completed', updated_at = now() WHERE booking_id = $1`, [c.booking_id]);
-  const payment = await paymentForBooking(t, c.booking_id, true);
-  if (payment) await captureOrVoid(t, payment, amount);
+  let charged = amount;
+  if (c.payment_method === 'wallet') {
+    // Customer pays billed minutes minus any welcome gift; the unused hold goes back to the wallet.
+    charged = Math.max(0, amount - (c.discount_paise || 0));
+    const held = await heldForBooking(t, c.booking_id);
+    await postEntry(t, { userId: c.client_user_id, type: 'release', amountPaise: Math.max(0, held - charged), bookingId: c.booking_id, description: 'Unused consultation balance released' });
+  } else {
+    const payment = await paymentForBooking(t, c.booking_id, true);
+    if (payment) await captureOrVoid(t, payment, amount);
+  }
+  await t.query('UPDATE consultations SET charged_paise = $2 WHERE consultation_id = $1', [c.consultation_id, charged]);
+  next.charged_paise = charged;
   await createEarning(t, { consultationId: c.consultation_id, astrologerId: c.astrologer_id, mode: c.mode, grossPaise: amount });
   await systemMessage(t, c.consultation_id,
-    `Session ended (${reason}). Billed ${Math.ceil(billable / 60)} min — ₹${rupees(amount)}. Unused balance of ₹${rupees(c.quoted_amount_paise - amount)} is released.`);
+    `Session ended (${reason}). Billed ${Math.ceil(billable / 60)} min — ₹${rupees(amount)}${charged !== amount ? ` (you pay ₹${rupees(charged)} after ${c.discount_label || 'discount'})` : ''}. Unused balance is released.`);
   await notify(t, c.client_user_id, {
     type: 'consultation.completed', title: 'Consultation completed',
-    body: `Your session with ${c.astrologer_name} has ended. Amount charged: ₹${rupees(amount)}.`,
+    body: `Your session with ${c.astrologer_name} has ended. Amount charged: ₹${rupees(charged)}.`,
     data: { consultationId: c.consultation_id }, channels: ['in_app', 'push', 'email'],
   });
   await notify(t, c.astrologer_user_id, {
@@ -201,16 +221,24 @@ export async function cancelBeforeStart(t, c, { to, by, byUserId, reason, policy
     [c.booking_id, to === 'expired' ? 'expired' : 'cancelled', reason, byUserId || null],
   );
   await releaseSlot(t, c);
-  const payment = await paymentForBooking(t, c.booking_id, true);
   let fee = 0;
-  if (payment) {
-    fee = Math.round((payment.amount_paise * (100 - pct)) / 100);
-    await captureOrVoid(t, payment, fee);
-    if (fee > 0) {
-      await createEarning(t, { consultationId: c.consultation_id, astrologerId: c.astrologer_id, mode: c.mode, grossPaise: fee, note: 'Late cancellation fee' });
+  if (c.payment_method === 'wallet') {
+    const held = await heldForBooking(t, c.booking_id);
+    fee = Math.round((held * (100 - pct)) / 100);
+    await postEntry(t, { userId: c.client_user_id, type: 'release', amountPaise: held - fee, bookingId: c.booking_id,
+      description: fee ? `Consultation ${to} — refunded after ${100 - pct}% cancellation fee` : `Consultation ${to} — full refund to wallet` });
+    if (fee > 0) await createEarning(t, { consultationId: c.consultation_id, astrologerId: c.astrologer_id, mode: c.mode, grossPaise: fee, note: 'Late cancellation fee' });
+  } else {
+    const payment = await paymentForBooking(t, c.booking_id, true);
+    if (payment) {
+      fee = Math.round((payment.amount_paise * (100 - pct)) / 100);
+      await captureOrVoid(t, payment, fee);
+      if (fee > 0) {
+        await createEarning(t, { consultationId: c.consultation_id, astrologerId: c.astrologer_id, mode: c.mode, grossPaise: fee, note: 'Late cancellation fee' });
+      }
     }
   }
-  const refundText = fee > 0 ? `₹${rupees(fee)} cancellation fee applies; the rest is released.` : 'Your full payment will be released/refunded.';
+  const refundText = fee > 0 ? `₹${rupees(fee)} cancellation fee applies; the rest is released.` : c.payment_method === 'wallet' ? 'The full amount is back in your wallet.' : 'Your full payment will be released/refunded.';
   const titles = { rejected: 'Consultation declined', expired: 'Consultation request expired', cancelled: 'Consultation cancelled' };
   await notify(t, c.client_user_id, {
     type: `booking.${to}`, title: titles[to], body: `${reason}. ${refundText}`, data: { consultationId: c.consultation_id },

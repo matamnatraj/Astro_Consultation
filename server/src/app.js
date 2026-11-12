@@ -17,6 +17,8 @@ import supportRoutes from './modules/support/routes.js';
 import assistantRoutes from './modules/assistant/routes.js';
 import adminRoutes from './modules/admin/routes.js';
 import { filesRouter } from './modules/files/storage.js';
+import walletRoutes from './modules/wallet/routes.js';
+import appConfigRoutes from './modules/content/appConfig.js';
 
 export function createApp() {
   const app = express();
@@ -29,6 +31,7 @@ export function createApp() {
   app.use('/v1/payments/webhook', webhookRouter);
   app.use('/mockpay', mockpayRouter);
   app.use('/v1/astrologer/me/documents', express.json({ limit: '8mb' }));
+  app.use(/^\/v1\/consultations\/[^/]+\/attachments$/, express.json({ limit: '8mb' }));
   app.use(express.json({ limit: '200kb' }));
 
   app.get('/health', async (_req, res) => {
@@ -54,6 +57,8 @@ export function createApp() {
   v1.use('/assistant', assistantRoutes);
   v1.use('/admin', adminRoutes);
   v1.use('/files', filesRouter);
+  v1.use('/wallet', walletRoutes);
+  v1.use('/config', appConfigRoutes);
   app.use('/v1', v1);
 
   app.use((_req, _res, next) => next(new AppError(404, 'not_found', 'Route not found')));

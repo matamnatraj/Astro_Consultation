@@ -10,6 +10,8 @@ import { notify } from '../notifications/service.js';
 import { publishToUser } from '../../realtime/hub.js';
 import { rupees } from '../../lib/money.js';
 import * as mockpay from '../../providers/payments/mockpay.js';
+import { confirmBooking } from '../bookings/service.js';
+import { postEntry } from '../wallet/service.js';
 
 const r = Router();
 
@@ -66,8 +68,12 @@ export async function handleWebhook(rawBody, signature) {
     } else if (evt.type === 'payment.failed' && p.status === 'created') {
       await t.query(`UPDATE payment_transactions SET status = 'failed', failure_reason = $2, updated_at = now() WHERE transaction_id = $1`,
         [p.transaction_id, evt.data.reason || 'Payment failed']);
-      const b = await t.one('SELECT b.*, cp.user_id FROM bookings b JOIN client_profiles cp USING (client_id) WHERE booking_id = $1', [p.booking_id]);
-      await notify(t, b.user_id, { type: 'payment.failed', title: 'Payment failed', body: 'Your payment did not go through. You can retry from your booking.', data: { bookingId: b.booking_id } });
+      if (p.purpose === 'wallet_recharge') {
+        await notify(t, p.user_id, { type: 'payment.failed', title: 'Recharge failed', body: 'Your wallet recharge did not go through. Please try again.', data: { wallet: true } });
+      } else {
+        const b = await t.one('SELECT b.*, cp.user_id FROM bookings b JOIN client_profiles cp USING (client_id) WHERE booking_id = $1', [p.booking_id]);
+        await notify(t, b.user_id, { type: 'payment.failed', title: 'Payment failed', body: 'Your payment did not go through. You can retry from your booking.', data: { bookingId: b.booking_id } });
+      }
       outcome = 'failed_recorded';
     }
     await t.query('UPDATE payment_webhook_events SET processed_at = now(), outcome = $2 WHERE gateway_event_id = $1', [evt.id, outcome]);
@@ -76,11 +82,8 @@ export async function handleWebhook(rawBody, signature) {
 }
 
 async function onAuthorized(t, p, paymentId) {
-  const b = await t.one(
-    `SELECT b.*, cp.user_id AS client_user_id, ap.user_id AS astrologer_user_id, ap.display_name
-     FROM bookings b JOIN client_profiles cp USING (client_id) JOIN astrologer_profiles ap USING (astrologer_id)
-     WHERE booking_id = $1 FOR UPDATE OF b`, [p.booking_id],
-  );
+  if (p.purpose === 'wallet_recharge') return onRechargePaid(t, p, paymentId);
+  const b = await t.one('SELECT status FROM bookings WHERE booking_id = $1 FOR UPDATE', [p.booking_id]);
   await t.query(`UPDATE payment_transactions SET status = 'authorized', gateway_payment_id = $2, updated_at = now() WHERE transaction_id = $1`,
     [p.transaction_id, paymentId]);
   if (b.status !== 'pending_payment') {
@@ -89,28 +92,22 @@ async function onAuthorized(t, p, paymentId) {
     await t.query(`UPDATE payment_transactions SET status = 'voided', updated_at = now() WHERE transaction_id = $1`, [p.transaction_id]);
     return 'voided_late_payment';
   }
-  await t.query(`UPDATE bookings SET status = 'confirmed', updated_at = now() WHERE booking_id = $1`, [b.booking_id]);
-  if (b.slot_id) await t.query(`UPDATE availability_slots SET status = 'booked', held_until = NULL WHERE slot_id = $1`, [b.slot_id]);
-  const acceptDeadline = b.booking_type === 'instant'
-    ? new Date(Date.now() + config.business.acceptWindowMin * 60000)
-    : new Date(Math.min(Date.now() + 12 * 3600_000, new Date(b.scheduled_at).getTime() - 5 * 60000));
-  const c = await t.one(
-    `INSERT INTO consultations (booking_id, client_id, astrologer_id, status, accept_deadline, max_billable_seconds)
-     VALUES ($1,$2,$3,'requested',$4,$5) RETURNING consultation_id`,
-    [b.booking_id, b.client_id, b.astrologer_id, acceptDeadline, b.duration_minutes * 60],
-  );
-  await notify(t, b.client_user_id, {
-    type: 'payment.success', title: 'Payment successful',
-    body: `₹${rupees(b.quoted_amount_paise)} authorized. Waiting for ${b.display_name} to accept.`,
-    data: { bookingId: b.booking_id, consultationId: c.consultation_id }, channels: ['in_app', 'push', 'email'],
-  });
-  await notify(t, b.astrologer_user_id, {
-    type: 'booking.request', title: b.booking_type === 'instant' ? 'New instant consultation request' : 'New scheduled booking',
-    body: `${b.mode} · ${b.duration_minutes} min${b.scheduled_at ? ` · ${new Date(b.scheduled_at).toISOString()}` : ''}. Please respond.`,
-    data: { consultationId: c.consultation_id }, channels: ['in_app', 'push', 'sms'],
-  });
-  t.afterCommit(() => publishToUser(b.astrologer_user_id, { type: 'consultation.request', consultationId: c.consultation_id }));
+  await confirmBooking(t, p.booking_id, { paidVia: 'gateway' });
   return 'authorized';
+}
+
+/** Wallet recharge: capture immediately and credit the wallet (plus any pack bonus). */
+async function onRechargePaid(t, p, paymentId) {
+  await gateway.capture(paymentId, p.amount_paise);
+  await t.query(`UPDATE payment_transactions SET status = 'captured', captured_paise = amount_paise, gateway_payment_id = $2, updated_at = now() WHERE transaction_id = $1`,
+    [p.transaction_id, paymentId]);
+  await postEntry(t, { userId: p.user_id, type: 'recharge', amountPaise: p.amount_paise, description: 'Wallet recharge', paymentTransactionId: p.transaction_id });
+  if (p.bonus_paise) await postEntry(t, { userId: p.user_id, type: 'bonus', amountPaise: p.bonus_paise, description: 'Recharge bonus', paymentTransactionId: p.transaction_id });
+  await notify(t, p.user_id, {
+    type: 'wallet.recharged', title: 'Wallet recharged',
+    body: `₹${rupees(p.amount_paise)} added${p.bonus_paise ? ` + ₹${rupees(p.bonus_paise)} bonus` : ''}.`, data: { wallet: true },
+  });
+  return 'wallet_credited';
 }
 
 export const webhookRouter = Router();

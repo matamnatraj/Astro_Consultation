@@ -26,36 +26,76 @@ export const presentAstrologer = (a, { full = false } = {}) => ({
   isOnline: a.is_online && isUserOnline(a.user_id),
   isBusy: Boolean(a.is_busy),
   timezone: a.timezone,
+  consultations: a.consultations ?? undefined,
+  isFavorite: a.is_favorite ?? false,
+  verified: a.verification_status === 'approved',
 });
+
+const csv = (v) => (v ? String(v).split(',').map((x) => x.trim()).filter(Boolean) : []);
+// Shared SELECT extras: busy flag, completed consultations, and whether the caller favourited them ($1 = user id).
+const EXTRAS = `EXISTS (SELECT 1 FROM consultations c WHERE c.astrologer_id = a.astrologer_id AND c.status = 'in_progress') AS is_busy,
+  (SELECT count(*) FROM consultations c WHERE c.astrologer_id = a.astrologer_id AND c.status = 'completed')::int AS consultations,
+  EXISTS (SELECT 1 FROM favorite_astrologers f JOIN client_profiles cp USING (client_id) WHERE f.astrologer_id = a.astrologer_id AND cp.user_id = $1) AS is_favorite`;
 
 discoveryRouter.get('/', async (req, res) => {
   const q = parse(z.object({
     q: z.string().max(60).optional(),
-    language: z.string().max(30).optional(),
-    specialty: z.string().max(40).optional(),
+    language: z.string().max(200).optional(), // comma-separated; matches any
+    specialty: z.string().max(300).optional(), // comma-separated; matches any
     mode: z.enum(['chat', 'voice', 'video']).optional(),
     minRating: z.coerce.number().min(0).max(5).optional(),
+    minRate: z.coerce.number().int().min(0).optional(),
     maxRate: z.coerce.number().int().min(0).optional(),
+    minExp: z.coerce.number().int().min(0).optional(),
+    maxExp: z.coerce.number().int().min(0).optional(),
     online: z.enum(['true', 'false']).optional(),
-    sort: z.enum(['rating', 'price_asc', 'price_desc', 'experience']).default('rating'),
+    favorites: z.enum(['true', 'false']).optional(),
+    sort: z.enum(['popular', 'rating', 'price_asc', 'price_desc', 'experience']).default('rating'),
   }), req.query);
   const where = [`a.verification_status = 'approved'`, `u.status = 'active'`];
-  const p = [];
+  const p = [req.user.userId];
   const add = (v) => { p.push(v); return `$${p.length}`; };
-  if (q.q) where.push(`(a.display_name ILIKE ${add(`%${q.q}%`)} OR a.bio ILIKE $${p.length})`);
-  if (q.language) where.push(`${add(q.language)} = ANY(a.languages)`);
-  if (q.specialty) where.push(`${add(q.specialty)} = ANY(a.specialties)`);
+  const rateCol = { chat: 'a.chat_rate_paise', voice: 'a.voice_rate_paise', video: 'a.video_rate_paise' }[q.mode || 'chat'];
+  if (q.q) where.push(`(a.display_name ILIKE ${add(`%${q.q}%`)} OR a.bio ILIKE $${p.length} OR array_to_string(a.specialties, ' ') ILIKE $${p.length})`);
+  if (csv(q.language).length) where.push(`a.languages && ${add(csv(q.language))}::text[]`);
+  if (csv(q.specialty).length) where.push(`a.specialties && ${add(csv(q.specialty))}::text[]`);
   if (q.mode) where.push(`${add(q.mode)} = ANY(a.modes)`);
   if (q.minRating) where.push(`a.rating_avg >= ${add(q.minRating)}`);
-  if (q.maxRate !== undefined) where.push(`a.chat_rate_paise <= ${add(q.maxRate)}`);
+  if (q.minRate !== undefined) where.push(`${rateCol} >= ${add(q.minRate)}`);
+  if (q.maxRate !== undefined) where.push(`${rateCol} <= ${add(q.maxRate)}`);
+  if (q.minExp !== undefined) where.push(`a.experience_years >= ${add(q.minExp)}`);
+  if (q.maxExp !== undefined) where.push(`a.experience_years <= ${add(q.maxExp)}`);
   if (q.online === 'true') where.push('a.is_online');
-  const order = { rating: 'a.rating_avg DESC, a.rating_count DESC', price_asc: 'a.chat_rate_paise ASC', price_desc: 'a.chat_rate_paise DESC', experience: 'a.experience_years DESC' }[q.sort];
+  if (q.favorites === 'true') where.push(`EXISTS (SELECT 1 FROM favorite_astrologers f JOIN client_profiles cp USING (client_id) WHERE f.astrologer_id = a.astrologer_id AND cp.user_id = $1)`);
+  const order = {
+    popular: 'consultations DESC, a.rating_count DESC', rating: 'a.rating_avg DESC, a.rating_count DESC',
+    price_asc: `${rateCol} ASC`, price_desc: `${rateCol} DESC`, experience: 'a.experience_years DESC',
+  }[q.sort];
   const rows = await many(
-    `SELECT a.*, EXISTS (SELECT 1 FROM consultations c WHERE c.astrologer_id = a.astrologer_id AND c.status = 'in_progress') AS is_busy
-     FROM astrologer_profiles a JOIN user_accounts u USING (user_id)
+    `SELECT a.*, ${EXTRAS} FROM astrologer_profiles a JOIN user_accounts u USING (user_id)
      WHERE ${where.join(' AND ')} ORDER BY a.is_online DESC, ${order} LIMIT 100`, p,
   );
-  res.json(rows.map((a) => presentAstrologer(a)));
+  // Online first, using live presence rather than the stored toggle alone (stable sort keeps the chosen order).
+  const list = rows.map((a) => presentAstrologer(a));
+  list.sort((x, y) => Number(y.isOnline) - Number(x.isOnline));
+  res.json(q.online === 'true' ? list.filter((a) => a.isOnline) : list);
+});
+
+discoveryRouter.put('/:id/favorite', async (req, res) => {
+  const cp = await one('SELECT client_id FROM client_profiles WHERE user_id = $1', [req.user.userId]);
+  if (!cp) throw forbidden('Only customers can save favourites');
+  const a = await one(`SELECT 1 FROM astrologer_profiles WHERE astrologer_id = $1 AND verification_status = 'approved'`, [req.params.id]);
+  if (!a) throw notFound('Astrologer');
+  await query('INSERT INTO favorite_astrologers (client_id, astrologer_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [cp.client_id, req.params.id]);
+  res.json({ isFavorite: true });
+});
+
+discoveryRouter.delete('/:id/favorite', async (req, res) => {
+  await query(
+    'DELETE FROM favorite_astrologers f USING client_profiles cp WHERE f.client_id = cp.client_id AND cp.user_id = $1 AND f.astrologer_id = $2',
+    [req.user.userId, req.params.id],
+  );
+  res.json({ isFavorite: false });
 });
 
 discoveryRouter.get('/filters', async (_req, res) => {
@@ -68,20 +108,23 @@ discoveryRouter.get('/filters', async (_req, res) => {
 
 discoveryRouter.get('/:id', async (req, res) => {
   const a = await one(
-    `SELECT a.*, EXISTS (SELECT 1 FROM consultations c WHERE c.astrologer_id = a.astrologer_id AND c.status = 'in_progress') AS is_busy
+    `SELECT a.*, ${EXTRAS}
      FROM astrologer_profiles a JOIN user_accounts u USING (user_id)
-     WHERE a.astrologer_id = $1 AND a.verification_status = 'approved' AND u.status = 'active'`, [req.params.id],
+     WHERE a.astrologer_id = $2 AND a.verification_status = 'approved' AND u.status = 'active'`, [req.user.userId, req.params.id],
   );
   if (!a) throw notFound('Astrologer');
   const [reviews, slots] = await Promise.all([
-    many(`SELECT r.rating, r.comment, r.created_at, COALESCE(split_part(cp.full_name,' ',1),'Customer') AS reviewer
+    many(`SELECT r.rating, r.comment, r.tags, r.created_at, COALESCE(split_part(cp.full_name,' ',1),'Customer') AS reviewer
           FROM reviews r JOIN client_profiles cp USING (client_id)
           WHERE r.astrologer_id = $1 AND r.status = 'published' ORDER BY r.created_at DESC LIMIT 20`, [a.astrologer_id]),
     many(`SELECT slot_id, start_at, end_at FROM availability_slots
           WHERE astrologer_id = $1 AND status = 'open' AND start_at > now() + interval '15 minutes' AND start_at < now() + interval '14 days'
           ORDER BY start_at LIMIT 100`, [a.astrologer_id]),
   ]);
-  res.json({ ...presentAstrologer(a, { full: true }), reviews, slots: slots.map((s) => ({ slotId: s.slot_id, startAt: s.start_at, endAt: s.end_at })) });
+  const tagCounts = {};
+  for (const rv of reviews) for (const tag of rv.tags || []) tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+  const topTags = Object.entries(tagCounts).sort((x, y) => y[1] - x[1]).slice(0, 5).map(([tag, count]) => ({ tag, count }));
+  res.json({ ...presentAstrologer(a, { full: true }), reviews, topTags, slots: slots.map((s) => ({ slotId: s.slot_id, startAt: s.start_at, endAt: s.end_at })) });
 });
 
 // ───────────── Astrologer self-service ─────────────
