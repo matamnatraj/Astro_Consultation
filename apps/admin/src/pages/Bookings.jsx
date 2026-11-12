@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useAuth, useAsync, Card, Button, Badge, Modal, Spinner, Field, ErrorBox, rupees, fmtDateTime, titleCase, useToast } from '@astro/shared';
+import { useT, useAuth, useAsync, Card, Button, Badge, Modal, Spinner, Field, ErrorBox, rupees, fmtDateTime, titleCase, useToast } from '@astro/shared';
 
 const STATUSES = ['', 'pending_payment', 'requested', 'accepted', 'ready', 'in_progress', 'completed', 'cancelled', 'rejected', 'expired'];
 
 export default function Bookings() {
+  const t = useT();
   const { api, can } = useAuth();
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
@@ -12,7 +13,7 @@ export default function Bookings() {
   const [toast, showToast] = useToast();
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Bookings</h1><p>Lookup, cancellation, disputes and status handling.</p></div>
+      <div className="page-head"><div><h1>{t('page.bookings.title')}</h1><p>{t('page.bookings.sub')}</p></div>
         <div className="row"><input placeholder="Search ID, customer, astrologer" value={q} onChange={(e) => setQ(e.target.value)} />
           <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">{STATUSES.map((s) => <option key={s} value={s}>{s ? titleCase(s) : 'All statuses'}</option>)}</select></div></div>
       {list.loading ? <Spinner /> : (

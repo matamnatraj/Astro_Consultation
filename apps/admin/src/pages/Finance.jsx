@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useAuth, useAsync, Card, Button, Badge, Modal, Spinner, Field, ErrorBox, Empty, Tabs, rupees, fmtDateTime, titleCase, useToast } from '@astro/shared';
+import { useT, useAuth, useAsync, Card, Button, Badge, Modal, Spinner, Field, ErrorBox, Empty, Tabs, rupees, fmtDateTime, titleCase, useToast } from '@astro/shared';
 
 export function Payments() {
+  const t = useT();
   const { api, can } = useAuth();
   const [status, setStatus] = useState('');
   const list = useAsync(() => api.get(`/admin/payments?status=${status}`), [status]);
@@ -9,7 +10,7 @@ export function Payments() {
   const [toast, showToast] = useToast();
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Payments & refunds</h1><p>Gateway transactions. Card data is never stored — only gateway references.</p></div>
+      <div className="page-head"><div><h1>{t('page.payments.title')}</h1><p>{t('page.payments.sub')}</p></div>
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: 200 }} aria-label="Status">{['', 'created', 'authorized', 'captured', 'partially_refunded', 'refunded', 'voided', 'failed'].map((s) => <option key={s} value={s}>{s ? titleCase(s) : 'All statuses'}</option>)}</select></div>
       {list.loading ? <Spinner /> : (
         <Card pad={false}><div className="table-wrap"><table className="table">
@@ -52,10 +53,11 @@ function RefundModal({ p, onClose, onDone }) {
 }
 
 export function Finance() {
+  const t = useT();
   const [tab, setTab] = useState('payouts');
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Commission & payouts</h1><p>Ledger-based astrologer earnings, configurable commission and payout batches.</p></div></div>
+      <div className="page-head"><div><h1>{t('page.finance.title')}</h1><p>{t('page.finance.sub')}</p></div></div>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'payouts', label: 'Payouts' }, { value: 'rules', label: 'Commission rules' }, { value: 'ledger', label: 'Ledger' }]} />
       {tab === 'payouts' && <Payouts />}{tab === 'rules' && <Rules />}{tab === 'ledger' && <Ledger />}
     </div>

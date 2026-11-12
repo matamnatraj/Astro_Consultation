@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Button, Field, ErrorBox, Modal, Spinner } from './ui.jsx';
 import { createRealtime, RealtimeContext } from './realtime.js';
+import { useT, LanguageButton } from './i18n.jsx';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -37,7 +38,8 @@ export function AuthProvider({ api, role, children }) {
 }
 
 /** OTP login used by all three apps. */
-export function LoginScreen({ api, role, brand, tagline, identifierLabel = 'Mobile number or email', placeholder = '98765 43210', footer }) {
+export function LoginScreen({ api, role, brand, tagline, identifierLabel, placeholder = '98765 43210', footer }) {
+  const t = useT();
   const [step, setStep] = useState('id');
   const [identifier, setIdentifier] = useState('');
   const [name, setName] = useState('');
@@ -66,30 +68,31 @@ export function LoginScreen({ api, role, brand, tagline, identifierLabel = 'Mobi
   return (
     <div className="login-wrap">
       <div className="login-card">
+        <div className="lang-row"><LanguageButton /></div>
         <div className="brand-lg">{brand}</div>
         <p className="muted">{tagline}</p>
         <ErrorBox error={error} />
         {step === 'id' ? (
           <form onSubmit={request} className="stack">
-            <Field label={identifierLabel}>
+            <Field label={identifierLabel || t('core.identifier')}>
               <input autoFocus required value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder={placeholder} autoComplete="username" />
             </Field>
-            <Button type="submit" loading={busy}>Send one-time code</Button>
+            <Button type="submit" loading={busy}>{t('core.sendCode')}</Button>
           </form>
         ) : (
           <form onSubmit={verify} className="stack">
-            <p className="small">Enter the 6-digit code sent by {challenge.channel === 'email' ? 'email' : 'SMS'} to <strong>{identifier}</strong>.</p>
-            {challenge.devCode && <div className="alert alert-info small">Development mode: code <strong>{challenge.devCode}</strong> pre-filled.</div>}
-            <Field label="One-time code">
+            <p className="small">{t('core.codeSent')} <strong>{identifier}</strong></p>
+            {challenge.devCode && <div className="alert alert-info small">{t('core.devCode', { code: challenge.devCode })}</div>}
+            <Field label={t('core.otp')}>
               <input autoFocus required inputMode="numeric" pattern="\d{6}" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} autoComplete="one-time-code" />
             </Field>
             {challenge.isNewAccount && role !== 'admin' && (
-              <Field label="Your name"><input required value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></Field>
+              <Field label={t('core.yourName')}><input required value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></Field>
             )}
-            <Button type="submit" loading={busy}>Verify & continue</Button>
+            <Button type="submit" loading={busy}>{t('core.verify')}</Button>
             <div className="row between small">
-              <button type="button" className="link" onClick={() => setStep('id')}>Change number</button>
-              <button type="button" className="link" onClick={request} disabled={busy}>Resend code</button>
+              <button type="button" className="link" onClick={() => setStep('id')}>{t('core.changeNumber')}</button>
+              <button type="button" className="link" onClick={request} disabled={busy}>{t('core.resend')}</button>
             </div>
           </form>
         )}
@@ -102,6 +105,7 @@ export function LoginScreen({ api, role, brand, tagline, identifierLabel = 'Mobi
 /** Blocks the app until current required notices (terms, privacy, disclaimers) are accepted. Version + timestamp recorded server-side. */
 export function ConsentGate({ children }) {
   const { api } = useAuth();
+  const t = useT();
   const [pending, setPending] = useState(null);
   const [checked, setChecked] = useState({});
   const [busy, setBusy] = useState(false);
@@ -118,14 +122,14 @@ export function ConsentGate({ children }) {
     } catch (e) { setError(e); } finally { setBusy(false); }
   };
   return (
-    <Modal open title="Before you continue" footer={<Button disabled={!all} loading={busy} onClick={accept}>I agree</Button>}>
-      <p className="muted small">Please review and accept the following notices. We record the version and time of your acceptance.</p>
+    <Modal open title={t('core.beforeContinue')} footer={<Button disabled={!all} loading={busy} onClick={accept}>{t('core.agree')}</Button>}>
+      <p className="muted small">{t('core.reviewNotices')}</p>
       <ErrorBox error={error} />
       {pending.map((p) => (
         <details key={p.noticeType} className="notice">
           <summary><label className="check" onClick={(e) => e.stopPropagation()}>
             <input type="checkbox" checked={!!checked[p.noticeType]} onChange={(e) => setChecked({ ...checked, [p.noticeType]: e.target.checked })} />
-            <span>I have read and accept the <strong>{p.title}</strong> (v{p.version})</span>
+            <span>{t('core.accept')} <strong>{p.title}</strong> (v{p.version})</span>
           </label></summary>
           <div className="notice-body">{p.body}</div>
         </details>

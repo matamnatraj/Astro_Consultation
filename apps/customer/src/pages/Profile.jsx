@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useAuth, useAsync, Card, Button, Field, Modal, Spinner, ErrorBox, Badge, Alert, useToast, fmtDate, fmtDateTime, titleCase } from '@astro/shared';
+import { useAuth, useAsync, useI18n, LANGS, LanguagePicker, Card, Button, Field, Modal, Spinner, ErrorBox, Badge, Alert, useToast, fmtDate, fmtDateTime, titleCase } from '@astro/shared';
 
 export default function Profile() {
   const { api, logout } = useAuth();
+  const { t } = useI18n();
   const [params, setParams] = useSearchParams();
   const profile = useAsync(() => api.get('/clients/me'), []);
   const births = useAsync(() => api.get('/clients/me/birth-profiles'), []);
@@ -15,25 +16,25 @@ export default function Profile() {
 
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Profile & charts</h1><p>Your details are saved to your account and available on any device.</p></div></div>
-      {profile.loading ? <Spinner /> : <PersonalCard profile={profile.data} onSaved={(p) => { profile.setData((d) => ({ ...d, ...p })); showToast('Profile saved'); }} />}
+      <div className="page-head"><div><h1>{t('nav.profile')}</h1><p>{t('profile.sub')}</p></div></div>
+      {profile.loading ? <Spinner /> : <PersonalCard profile={profile.data} onSaved={(p) => { profile.setData((d) => ({ ...d, ...p })); showToast(t('profile.saved')); }} />}
 
-      <Card title="Birth profiles" actions={<Button size="sm" onClick={() => setEditing('new')}>+ Add</Button>}>
+      <Card title={t('profile.births')} actions={<Button size="sm" onClick={() => setEditing('new')}>+ {t('profile.add')}</Button>}>
         {births.loading ? <Spinner /> : births.data.length === 0 ? (
-          <div className="stack-s"><p className="muted">No birth details yet. Add yours (and family members') to get a chart and share it with astrologers.</p></div>
+          <div className="stack-s"><p className="muted">{t('profile.noBirths')}</p></div>
         ) : (
           <div className="list">
             {births.data.map((b) => (
               <div key={b.birthProfileId} className="list-item">
                 <div className="grow">
-                  <strong>{b.fullName}</strong> <span className="chip">{b.label}</span>{b.isPrimary && <Badge tone="info">Primary</Badge>}
-                  <div className="small muted">{fmtDate(b.birthDate)} · {b.birthTime ? b.birthTime.slice(0, 5) : 'Time unknown'}{b.timeAccuracy === 'approximate' && ' (approx.)'} · {b.placeName}</div>
+                  <strong>{b.fullName}</strong> <span className="chip">{b.label}</span>{b.isPrimary && <Badge tone="info">{t('profile.primary')}</Badge>}
+                  <div className="small muted">{fmtDate(b.birthDate)} · {b.birthTime ? b.birthTime.slice(0, 5) : t('match.timeUnknown')}{b.timeAccuracy === 'approximate' && ' (approx.)'} · {b.placeName}</div>
                   <div className="tiny muted">Version {b.version} · updated {fmtDateTime(b.updatedAt)}</div>
                 </div>
                 <div className="row gap-s">
-                  {b.latestChart ? <Badge status={b.latestChart.status}>{b.latestChart.status === 'stale' ? 'Chart outdated' : 'Chart ready'}</Badge> : <Badge tone="muted">No chart</Badge>}
-                  <Link className="btn btn-secondary btn-sm" to={`/charts/${b.birthProfileId}`}>View chart</Link>
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(b)}>Edit</Button>
+                  {b.latestChart ? <Badge status={b.latestChart.status}>{b.latestChart.status === 'stale' ? t('book.chartOutdated') : t('profile.chartReady')}</Badge> : <Badge tone="muted">{t('profile.noChart')}</Badge>}
+                  <Link className="btn btn-secondary btn-sm" to={`/charts/${b.birthProfileId}`}>{t('profile.viewChart')}</Link>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(b)}>{t('profile.edit')}</Button>
                 </div>
               </div>
             ))}
@@ -41,13 +42,13 @@ export default function Profile() {
         )}
       </Card>
 
-      <Card title="Privacy & data">
+      <Card title={t('profile.privacy')}>
         <div className="stack">
           <p className="small muted">Your birth details are shown only to the astrologer assigned to an accepted consultation, and every access is logged. Birth details and message contents are never shown in push notification previews.</p>
           <div className="row wrap gap-s">
-            <Button variant="secondary" size="sm" onClick={() => api.download('/clients/me/export', 'my-data.json')}>Download my data</Button>
+            <Button variant="secondary" size="sm" onClick={() => api.download('/clients/me/export', 'my-data.json')}>{t('profile.download')}</Button>
             <DeletionButton onDone={(n) => showToast(`Deletion request #${n} submitted`)} />
-            <Button variant="ghost" size="sm" onClick={logout}>Sign out</Button>
+            <Button variant="ghost" size="sm" onClick={logout}>{t('core.signOut')}</Button>
           </div>
           <details>
             <summary className="small">Notices you've accepted</summary>
@@ -78,7 +79,10 @@ export default function Profile() {
 
 function PersonalCard({ profile, onSaved }) {
   const { api } = useAuth();
-  const [f, setF] = useState({ fullName: profile.fullName || '', gender: profile.gender || '', contactEmail: profile.contactEmail || '', preferredLanguage: profile.preferredLanguage || 'en', notificationPrefs: profile.notificationPrefs });
+  const { t, lang } = useI18n();
+  const [langOpen, setLangOpen] = useState(false);
+  // The language is changed through the picker (saved instantly), so it is not part of this form.
+  const [f, setF] = useState({ fullName: profile.fullName || '', gender: profile.gender || '', contactEmail: profile.contactEmail || '', notificationPrefs: profile.notificationPrefs });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const save = async (e) => {
@@ -86,37 +90,38 @@ function PersonalCard({ profile, onSaved }) {
     try { onSaved(await api.put('/clients/me', { ...f, gender: f.gender || null, contactEmail: f.contactEmail || null })); } catch (x) { setErr(x); } finally { setBusy(false); }
   };
   return (
-    <Card title="Personal details">
+    <Card title={t('profile.personal')}>
       <form onSubmit={save} className="stack">
         <ErrorBox error={err} />
         <div className="form-grid">
-          <Field label="Full name"><input required value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} /></Field>
-          <Field label="Gender"><select value={f.gender} onChange={(e) => setF({ ...f, gender: e.target.value })}>
-            <option value="">Prefer not to say</option><option value="female">Female</option><option value="male">Male</option><option value="non_binary">Non-binary</option></select></Field>
-          <Field label="Email (for receipts)"><input type="email" value={f.contactEmail} onChange={(e) => setF({ ...f, contactEmail: e.target.value })} /></Field>
-          <Field label="Preferred language"><select value={f.preferredLanguage} onChange={(e) => setF({ ...f, preferredLanguage: e.target.value })}>
-            <option value="en">English</option><option value="hi">हिन्दी</option><option value="ta">தமிழ்</option><option value="te">తెలుగు</option><option value="mr">मराठी</option><option value="bn">বাংলা</option></select></Field>
+          <Field label={t('profile.fullName')}><input required value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} /></Field>
+          <Field label={t('profile.gender')}><select value={f.gender} onChange={(e) => setF({ ...f, gender: e.target.value })}>
+            <option value="">{t('profile.genderNone')}</option><option value="female">{t('profile.female')}</option><option value="male">{t('profile.male')}</option><option value="non_binary">{t('profile.nonBinary')}</option></select></Field>
+          <Field label={t('profile.email')}><input type="email" value={f.contactEmail} onChange={(e) => setF({ ...f, contactEmail: e.target.value })} /></Field>
+          <Field label={t('lang.title')}><button type="button" className="btn btn-secondary" style={{ justifyContent: 'space-between', width: '100%' }} onClick={() => setLangOpen(true)}><span>{LANGS.find((l) => l.code === lang)?.native}</span><span className="muted">{t('profile.change')} ›</span></button></Field>
         </div>
-        <div className="row wrap"><span className="field-label">Notify me by</span>
+        <div className="row wrap"><span className="field-label">{t('profile.notify')}</span>
           {['push', 'email', 'sms'].map((ch) => (
             <label key={ch} className="check small"><input type="checkbox" checked={!!f.notificationPrefs?.[ch]} onChange={(e) => setF({ ...f, notificationPrefs: { ...f.notificationPrefs, [ch]: e.target.checked } })} /> {ch.toUpperCase()}</label>
           ))}
         </div>
-        <div><Button type="submit" loading={busy}>Save</Button></div>
+        <div><Button type="submit" loading={busy}>{t('profile.save')}</Button></div>
       </form>
+      <LanguagePicker open={langOpen} onClose={() => setLangOpen(false)} />
     </Card>
   );
 }
 
 function DeletionButton({ onDone }) {
   const { api } = useAuth();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   return (
     <>
-      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} style={{ color: 'var(--bad)' }}>Request account deletion</Button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Request account deletion" footer={<Button variant="danger" loading={busy} onClick={async () => { setBusy(true); const r = await api.post('/clients/me/deletion-request', { reason: reason || undefined }); setBusy(false); setOpen(false); onDone(r.ticketNumber); }}>Submit request</Button>}>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)} style={{ color: 'var(--bad)' }}>{t('profile.deletion')}</Button>
+      <Modal open={open} onClose={() => setOpen(false)} title={t('profile.deletion')} footer={<Button variant="danger" loading={busy} onClick={async () => { setBusy(true); const r = await api.post('/clients/me/deletion-request', { reason: reason || undefined }); setBusy(false); setOpen(false); onDone(r.ticketNumber); }}>Submit request</Button>}>
         <p className="small">Our team will process your request within 72 hours. Some records (such as payment and tax records) must be retained for legal periods; everything else is deleted or anonymised.</p>
         <Field label="Reason (optional)"><textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
       </Modal>

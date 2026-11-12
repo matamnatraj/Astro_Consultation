@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes, Navigate } from 'react-router-dom';
-import { AuthProvider, LoginScreen, NotificationBell, useAuth, Badge, Avatar, titleCase } from '@astro/shared';
+import { AuthProvider, LoginScreen, NotificationBell, useAuth, Badge, Avatar, titleCase, useT, LanguageButton } from '@astro/shared';
 import { api } from './api.js';
+import { I18nProvider } from './i18n.js';
 import Dashboard from './pages/Dashboard.jsx';
 import Astrologers from './pages/Astrologers.jsx';
 import Customers from './pages/Customers.jsx';
@@ -13,30 +14,32 @@ import Reports from './pages/Reports.jsx';
 import { Admins, Audit, Consents } from './pages/Governance.jsx';
 
 const NAV = [
-  ['Operations', [['/', 'Dashboard', 'dashboard.view'], ['/astrologers', 'Astrologers', 'astrologers.view'], ['/customers', 'Customers', 'customers.view'], ['/bookings', 'Bookings', 'bookings.view'], ['/support', 'Support', 'support.manage'], ['/reviews', 'Reviews', 'reviews.moderate']]],
-  ['Finance', [['/payments', 'Payments & refunds', 'payments.view'], ['/finance', 'Commission & payouts', 'payouts.manage']]],
-  ['Content', [['/content', 'Announcements & policies', 'content.view'], ['/consents', 'Consent records', 'customers.view']]],
-  ['Insights', [['/reports', 'Reports', 'reports.view']]],
-  ['Governance', [['/admins', 'Admin users', 'admins.manage'], ['/audit', 'Audit log', 'audit.view']]],
+  ['sec.operations', [['/', 'nav.dashboard', 'dashboard.view'], ['/astrologers', 'nav.astrologers', 'astrologers.view'], ['/customers', 'nav.customers', 'customers.view'], ['/bookings', 'nav.bookings', 'bookings.view'], ['/support', 'nav.support', 'support.manage'], ['/reviews', 'nav.reviews', 'reviews.moderate']]],
+  ['sec.finance', [['/payments', 'nav.payments', 'payments.view'], ['/finance', 'nav.finance', 'payouts.manage']]],
+  ['sec.content', [['/content', 'nav.content', 'content.view'], ['/consents', 'nav.consents', 'customers.view']]],
+  ['sec.insights', [['/reports', 'nav.reports', 'reports.view']]],
+  ['sec.governance', [['/admins', 'nav.admins', 'admins.manage'], ['/audit', 'nav.audit', 'audit.view']]],
 ];
 
 function Shell() {
   const { me, can, logout } = useAuth();
-  if (!me) return <LoginScreen api={api} role="admin" brand={<span className="row"><span className="brand-mark">✦</span>Admin Console</span>} tagline="Sign in with your admin email." identifierLabel="Admin email" placeholder="admin@astro.local" />;
+  const t = useT();
+  if (!me) return <LoginScreen api={api} role="admin" brand={<span className="row"><span className="brand-mark">✦</span>{t('login.brand')}</span>} tagline={t('login.tagline')} identifierLabel={t('login.identifier')} placeholder="admin@astro.local" />;
   const sections = NAV.map(([title, items]) => [title, items.filter(([, , p]) => can(p))]).filter(([, items]) => items.length);
   const R = (path, perm, el) => (can(perm) ? <Route path={path} element={el} /> : null);
   return (
     <div className="admin">
       <nav className="sidebar">
         <div className="brand"><span className="brand-mark">✦</span>Admin</div>
-        {sections.map(([title, items]) => [<div key={title} className="section">{title}</div>, ...items.map(([to, label]) => <NavLink key={to} to={to} end={to === '/'}>{label}</NavLink>)])}
+        {sections.map(([title, items]) => [<div key={title} className="section">{t(title)}</div>, ...items.map(([to, label]) => <NavLink key={to} to={to} end={to === '/'}>{t(label)}</NavLink>)])}
       </nav>
       <div className="admin-main">
         <header className="topbar">
+          <LanguageButton />
           <NotificationBell />
           <Avatar name={me.user.displayName || 'Admin'} size={30} />
           <div className="small"><strong>{me.user.displayName}</strong><Badge tone="info">{titleCase(me.user.adminRole)}</Badge></div>
-          <button className="btn btn-ghost btn-sm" onClick={logout}>Sign out</button>
+          <button className="btn btn-ghost btn-sm" onClick={logout}>{t('core.signOut')}</button>
         </header>
         <main className="main" style={{ maxWidth: 1320 }}>
           <Routes>
@@ -62,5 +65,5 @@ function Shell() {
 }
 
 export default function App() {
-  return <AuthProvider api={api} role="admin"><Shell /></AuthProvider>;
+  return <I18nProvider><AuthProvider api={api} role="admin"><Shell /></AuthProvider></I18nProvider>;
 }

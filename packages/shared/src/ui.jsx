@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { STATUS_TONE, titleCase } from './format.js';
+import { useT } from './i18n.jsx';
 
 export const Button = ({ variant = 'primary', size, loading, children, className = '', ...p }) => (
   <button className={`btn btn-${variant} ${size ? `btn-${size}` : ''} ${className}`} disabled={loading || p.disabled} {...p}>
@@ -24,10 +25,11 @@ export const Empty = ({ title, children, icon = '✦' }) => (
   <div className="empty"><div className="empty-icon">{icon}</div><strong>{title}</strong>{children && <div className="muted">{children}</div>}</div>
 );
 
+function RetryLabel() { return useT()('core.retry'); }
 export const ErrorBox = ({ error, onRetry }) => error ? (
   <div className="alert alert-bad" role="alert">
     <span>{error.message || String(error)}</span>
-    {onRetry && <Button variant="ghost" size="sm" onClick={onRetry}>Retry</Button>}
+    {onRetry && <Button variant="ghost" size="sm" onClick={onRetry}><RetryLabel /></Button>}
   </div>
 ) : null;
 

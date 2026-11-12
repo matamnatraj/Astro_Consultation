@@ -16,6 +16,12 @@ A working MVP of everything in the *Astrology Consultation Platform — Detailed
 
 Native Android and iOS apps for customers and astrologers live in [`mobile/`](mobile/README.md) and are built with React Native + Expo. They use the same backend as the web apps. See [`mobile/README.md`](mobile/README.md) to run them on your phone and to publish to the stores.
 
+## Languages and Kundli matching
+
+All five apps (customer, astrologer and admin websites, and the two mobile apps) have an app-language picker with English, Hindi, Telugu, Tamil, Kannada, Marathi and Bengali. Customers and astrologers have their choice saved to their account, so it follows them across the website and the phone; the admin console remembers it per browser. Shared strings and the picker live in `packages/shared/src/i18n.jsx` (web) and `mobile/packages/core/src/i18n.js` (mobile); each app's own strings are in its `src/i18n.js` or `src/lib/i18n.js`. The translations need a native-speaker review before launch.
+
+Kundli matching (Ashtakoota guna milan out of 36, with doshas and Manglik for both people) is in the customer website (**Kundli Matching** in the menu) and the customer mobile app. Matches are saved under Recent matches and shared between the two.
+
 ## Quick start
 
 Requirements: Node 22+, PostgreSQL 14+ (or Docker).

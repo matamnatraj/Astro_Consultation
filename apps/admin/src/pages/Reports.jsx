@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useAuth, useAsync, Card, Button, Spinner, ErrorBox, Field, Empty, rupees, titleCase } from '@astro/shared';
+import { useT, useAuth, useAsync, Card, Button, Spinner, ErrorBox, Field, Empty, rupees, titleCase } from '@astro/shared';
 
 const fmtCell = (k, v) => (v === null || v === undefined ? '—' : k.endsWith('_paise') ? rupees(v) : /_at$|^day$/.test(k) ? String(v).slice(0, 16).replace('T', ' ') : String(v));
 
 export default function Reports() {
+  const t = useT();
   const { api, can } = useAuth();
   const types = useAsync(() => api.get('/admin/reports'), []);
   const [type, setType] = useState('financial');
@@ -14,7 +15,7 @@ export default function Reports() {
   const cols = rows[0] ? Object.keys(rows[0]) : [];
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Reports</h1><p>Operational, financial and quality reports with CSV export.</p></div></div>
+      <div className="page-head"><div><h1>{t('page.reports.title')}</h1><p>{t('page.reports.sub')}</p></div></div>
       <Card>
         <div className="form-grid">
           <Field label="Report"><select value={type} onChange={(e) => setType(e.target.value)}>{types.data?.map((t) => <option key={t.key} value={t.key}>{t.title}</option>)}</select></Field>

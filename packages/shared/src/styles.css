@@ -364,3 +364,29 @@ button.chip { cursor: pointer; font: inherit; font-size: 13px; padding: 5px 12px
 /* Keep the live consultation workspace uncluttered */
 .workspace ~ .fab, .workspace ~ .assistant { display: none; }
 @media (max-width: 760px) { .workspace ~ .bottomnav { display: none; } }
+
+/* Language picker */
+.lang-btn { display: inline-flex; align-items: center; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 700; color: var(--text); cursor: pointer; white-space: nowrap; }
+.lang-btn span { color: var(--primary); font-weight: 500; }
+.lang-btn:hover { border-color: var(--primary); }
+.lang-modal { max-width: 440px; }
+.lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.lang-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 14px 8px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; position: relative; }
+.lang-tile:hover { border-color: var(--primary); }
+.lang-tile.active { border-color: var(--primary); background: var(--primary-soft); }
+.lang-tile.active::after { content: '✓'; position: absolute; top: 6px; right: 10px; color: var(--primary); font-weight: 700; }
+.lang-native { font-size: 20px; font-weight: 700; }
+.lang-tile.active .lang-native { color: var(--primary); }
+.lang-label { font-size: 13px; color: var(--muted); }
+.lang-row { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+
+/* Kundli matching */
+.match-side { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; font-size: 15px; }
+.match-side.boy { background: #4b5bc4; }
+.match-side.girl { background: #db2777; }
+.match-mini { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 50%; border: 3px solid; font-weight: 700; font-size: 14px; flex: none; }
+.match-score { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.koota { padding: 10px 0; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--border); }
+.koota:last-child { border-bottom: 0; }
+.koota-bar { height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.koota-bar span { display: block; height: 100%; border-radius: 4px; }

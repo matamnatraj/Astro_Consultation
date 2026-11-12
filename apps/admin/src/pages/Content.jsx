@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useAuth, useAsync, Card, Button, Badge, Modal, Spinner, Field, ErrorBox, Tabs, fmtDateTime, titleCase, useToast } from '@astro/shared';
+import { useT, useAuth, useAsync, Card, Button, Badge, Modal, Spinner, Field, ErrorBox, Tabs, fmtDateTime, titleCase, useToast } from '@astro/shared';
 
 export default function Content() {
+  const t = useT();
   const [tab, setTab] = useState('announcements');
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Content</h1><p>Announcements, banners, FAQ knowledge base (used by the assistant) and versioned policies/disclaimers.</p></div></div>
+      <div className="page-head"><div><h1>{t('page.content.title')}</h1><p>{t('page.content.sub')}</p></div></div>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'announcements', label: 'Announcements' }, { value: 'faqs', label: 'FAQs' }, { value: 'policies', label: 'Policies & disclaimers' }]} />
       {tab === 'announcements' && <Announcements />}{tab === 'faqs' && <Faqs />}{tab === 'policies' && <Policies />}
     </div>

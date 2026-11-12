@@ -3,6 +3,7 @@ import { useAuth } from './auth.jsx';
 import { useRealtimeClient, useRealtimeEvent, useRealtimeStatus } from './realtime.js';
 import { mmss, fmtTime, rupees } from './format.js';
 import { Badge, Button } from './ui.jsx';
+import { useT } from './i18n.jsx';
 
 /**
  * Single source of truth for a live consultation: state, messages, timer and
@@ -123,7 +124,8 @@ export function SessionTimer({ session, compact }) {
 }
 
 /** Chat pane. Stays mounted while hidden so the live connection and state persist. */
-export function ChatPane({ session, visible = true, placeholder = 'Type a message…', disabledReason }) {
+export function ChatPane({ session, visible = true, placeholder, disabledReason }) {
+  const tr = useT();
   const { consultation: c, messages, pending, typing, send, retry, notifyTyping, markRead, myUserId, connection } = session;
   const [text, setText] = useState('');
   const listRef = useRef();
@@ -146,7 +148,7 @@ export function ChatPane({ session, visible = true, placeholder = 'Type a messag
   };
   return (
     <div className="chat" hidden={!visible}>
-      {connection !== 'online' && <div className="chat-banner">Reconnecting… messages will sync automatically.</div>}
+      {connection !== 'online' && <div className="chat-banner">{tr('core.reconnecting')}</div>}
       <div className="chat-list" ref={listRef} onScroll={(e) => { const el = e.currentTarget; atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; }}>
         {messages.map((m) => (m.kind === 'system'
           ? <div key={m.messageId} className="msg-system">{m.content}</div>
@@ -159,7 +161,7 @@ export function ChatPane({ session, visible = true, placeholder = 'Type a messag
         {pending.map((p) => (
           <div key={p.clientMsgId} className="msg mine pending">
             <div className="bubble">{p.content}</div>
-            <div className="msg-meta">{p.failed ? <button className="link small bad" onClick={() => retry(p)}>Failed — tap to retry</button> : 'Sending…'}</div>
+            <div className="msg-meta">{p.failed ? <button className="link small bad" onClick={() => retry(p)}>{tr('core.failed')}</button> : tr('core.sending')}</div>
           </div>
         ))}
         {typing && <div className="typing"><span /><span /><span /></div>}
@@ -168,7 +170,7 @@ export function ChatPane({ session, visible = true, placeholder = 'Type a messag
         <textarea
           rows={1}
           value={text}
-          placeholder={canSend ? placeholder : (disabledReason || 'Chat opens when the session starts')}
+          placeholder={canSend ? (placeholder || tr('core.typeMsg')) : (disabledReason || tr('core.chatOpens'))}
           disabled={!canSend}
           onChange={(e) => {
             setText(e.target.value);
@@ -178,7 +180,7 @@ export function ChatPane({ session, visible = true, placeholder = 'Type a messag
           aria-label="Message"
           maxLength={4000}
         />
-        <Button type="submit" disabled={!canSend || !text.trim()} aria-label="Send">Send</Button>
+        <Button type="submit" disabled={!canSend || !text.trim()} aria-label="Send">{tr('core.send')}</Button>
       </form>
     </div>
   );

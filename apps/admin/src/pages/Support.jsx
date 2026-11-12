@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { useAuth, useAsync, Card, Button, Badge, Spinner, Field, ErrorBox, Tabs, Empty, fmtDateTime, titleCase } from '@astro/shared';
+import { useT, useAuth, useAsync, Card, Button, Badge, Spinner, Field, ErrorBox, Tabs, Empty, fmtDateTime, titleCase } from '@astro/shared';
 
 export default function Support() {
+  const t = useT();
   const { api } = useAuth();
   const [tab, setTab] = useState('open');
   const list = useAsync(() => api.get(`/admin/tickets${tab === 'all' ? '' : `?status=${tab}`}`), [tab]);
   const [sel, setSel] = useState(null);
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Support & complaints</h1><p>Tickets from users and assistant handoffs, with SLA tracking.</p></div></div>
+      <div className="page-head"><div><h1>{t('page.support.title')}</h1><p>{t('page.support.sub')}</p></div></div>
       <Tabs value={tab} onChange={(t) => { setTab(t); setSel(null); }} tabs={['open', 'assigned', 'escalated', 'resolved', 'all'].map((v) => ({ value: v, label: titleCase(v) }))} />
       <div className="layout-side">
         <Card pad={false}>{list.loading ? <Spinner /> : !list.data.length ? <Empty title="No tickets" /> : <div className="table-wrap"><table className="table">

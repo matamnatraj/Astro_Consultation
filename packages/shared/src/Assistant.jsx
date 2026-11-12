@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from './auth.jsx';
 import { Button } from './ui.jsx';
+import { useT } from './i18n.jsx';
 
 /** Floating support assistant. Labelled as automated, with explicit consent before sharing the transcript on handoff. */
 export function AssistantWidget() {
   const { api } = useAuth();
+  const tr = useT();
   const [open, setOpen] = useState(false);
   const [intro, setIntro] = useState(null);
   const [log, setLog] = useState([]);
@@ -43,27 +45,27 @@ export function AssistantWidget() {
       <button className="fab" onClick={() => setOpen(!open)} aria-label="Open help assistant">{open ? '✕' : '?'}</button>
       {open && (
         <div className="assistant" role="dialog" aria-label="Help assistant">
-          <header><strong>Help</strong><span className="badge tone-info">{intro?.label || 'Automated assistant (AI)'}</span></header>
+          <header><strong>{tr('core.help')}</strong><span className="badge tone-info">{intro?.label || tr('core.ai')}</span></header>
           <div className="assistant-list" ref={listRef}>
-            <div className="msg theirs"><div className="bubble small">{intro?.disclosure || 'Loading…'}</div></div>
+            <div className="msg theirs"><div className="bubble small">{intro?.disclosure || tr('core.loading')}</div></div>
             {log.map((m, i) => (
               <div key={i} className={`msg ${m.from === 'user' ? 'mine' : 'theirs'}`}>
-                <div className="bubble" style={{ whiteSpace: 'pre-line' }}>{m.text}{m.link && <><br /><Link to={m.link} onClick={() => setOpen(false)}>Open →</Link></>}</div>
-                {m.suggestHandoff && <button className="link small" onClick={() => setHandoff(true)}>Talk to a human</button>}
+                <div className="bubble" style={{ whiteSpace: 'pre-line' }}>{m.text}{m.link && <><br /><Link to={m.link} onClick={() => setOpen(false)}>{tr('core.open')}</Link></>}</div>
+                {m.suggestHandoff && <button className="link small" onClick={() => setHandoff(true)}>{tr('core.human')}</button>}
               </div>
             ))}
             {handoff && (
               <div className="handoff">
-                <label className="check small"><input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} /> Share this conversation with the support agent</label>
-                <div className="row gap-s"><Button size="sm" loading={busy} onClick={doHandoff}>Create support ticket</Button><Button size="sm" variant="ghost" onClick={() => setHandoff(false)}>Cancel</Button></div>
+                <label className="check small"><input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} /> {tr('core.share')}</label>
+                <div className="row gap-s"><Button size="sm" loading={busy} onClick={doHandoff}>{tr('core.createTicket')}</Button><Button size="sm" variant="ghost" onClick={() => setHandoff(false)}>{tr('core.cancel')}</Button></div>
               </div>
             )}
           </div>
           <form className="composer" onSubmit={ask}>
-            <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Ask about bookings, payments, the app…" aria-label="Ask the assistant" maxLength={500} />
-            <Button type="submit" loading={busy}>Ask</Button>
+            <input value={text} onChange={(e) => setText(e.target.value)} placeholder={tr('core.askPh')} aria-label="Ask the assistant" maxLength={500} />
+            <Button type="submit" loading={busy}>{tr('core.ask')}</Button>
           </form>
-          <div className="assistant-foot"><button className="link small" onClick={() => setHandoff(true)}>Talk to a human</button></div>
+          <div className="assistant-foot"><button className="link small" onClick={() => setHandoff(true)}>{tr('core.human')}</button></div>
         </div>
       )}
     </>

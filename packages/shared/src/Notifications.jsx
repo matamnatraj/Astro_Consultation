@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './auth.jsx';
 import { useRealtimeEvent } from './realtime.js';
 import { timeAgo } from './format.js';
+import { useT } from './i18n.jsx';
 
 /** Bell with live in-app notifications. `routeFor` maps a notification to an in-app path. */
 export function NotificationBell({ routeFor = () => null, onEvent }) {
   const { api } = useAuth();
+  const t = useT();
   const [data, setData] = useState({ items: [], unreadCount: 0 });
   const [open, setOpen] = useState(false);
   const nav = useNavigate();
@@ -41,11 +43,11 @@ export function NotificationBell({ routeFor = () => null, onEvent }) {
       {open && (
         <div className="dropdown">
           <div className="row between dropdown-head">
-            <strong>Notifications</strong>
-            {data.unreadCount > 0 && <button className="link small" onClick={() => { api.post('/notifications/read-all'); setData((d) => ({ items: d.items.map((x) => ({ ...x, read_at: x.read_at || new Date().toISOString() })), unreadCount: 0 })); }}>Mark all read</button>}
+            <strong>{t('core.notifications')}</strong>
+            {data.unreadCount > 0 && <button className="link small" onClick={() => { api.post('/notifications/read-all'); setData((d) => ({ items: d.items.map((x) => ({ ...x, read_at: x.read_at || new Date().toISOString() })), unreadCount: 0 })); }}>{t('core.markAll')}</button>}
           </div>
           <div className="dropdown-list">
-            {data.items.length === 0 && <div className="muted pad">You're all caught up.</div>}
+            {data.items.length === 0 && <div className="muted pad">{t('core.caughtUp')}</div>}
             {data.items.map((n) => (
               <button key={n.notification_id} className={`notif ${n.read_at ? '' : 'unread'}`} onClick={() => openItem(n)}>
                 <div className="notif-title">{n.title}</div>

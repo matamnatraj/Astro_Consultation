@@ -8,3 +8,4 @@ export * from './Notifications.jsx';
 export * from './ChartView.jsx';
 export * from './Consultation.jsx';
 export * from './Assistant.jsx';
+export * from './i18n.jsx';

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { useAuth, useAsync, Card, Button, Spinner, ErrorBox, Avatar, Badge, rupees, fmtTime, Alert } from '@astro/shared';
+import { useAuth, useAsync, useT, Card, Button, Spinner, ErrorBox, Avatar, Badge, rupees, fmtTime, Alert } from '@astro/shared';
 
 const DURATIONS = [5, 10, 15, 20, 30];
 
@@ -8,6 +8,7 @@ export default function Book() {
   const { astrologerId } = useParams();
   const [params] = useSearchParams();
   const { api } = useAuth();
+  const t = useT();
   const astro = useAsync(() => api.get(`/astrologers/${astrologerId}`), [astrologerId]);
   const profiles = useAsync(() => api.get('/clients/me/birth-profiles'), []);
   const [type, setType] = useState(params.get('type') === 'instant' ? 'instant' : 'scheduled');
@@ -60,16 +61,16 @@ export default function Book() {
     <div className="layout-side">
       <div className="full"><Link to={`/astrologers/${astrologerId}`} className="small">← {a.displayName}</Link></div>
       <div className="stack" style={{ minWidth: 0 }}>
-        <Card title="1. When">
+        <Card title={`1. ${t('book.when')}`}>
           <div className="stack">
             <div className="segmented" role="radiogroup" aria-label="Booking type">
-              <button className={type === 'instant' ? 'active' : ''} onClick={() => setType('instant')} disabled={!instantAvailable} aria-pressed={type === 'instant'}>Now (instant)</button>
-              <button className={type === 'scheduled' ? 'active' : ''} onClick={() => setType('scheduled')} aria-pressed={type === 'scheduled'}>Schedule</button>
+              <button className={type === 'instant' ? 'active' : ''} onClick={() => setType('instant')} disabled={!instantAvailable} aria-pressed={type === 'instant'}>{t('book.now')}</button>
+              <button className={type === 'scheduled' ? 'active' : ''} onClick={() => setType('scheduled')} aria-pressed={type === 'scheduled'}>{t('common.schedule')}</button>
             </div>
             {type === 'instant' && (instantAvailable
-              ? <p className="small muted">{a.displayName} is online. They have a few minutes to accept your request; if they don't, you're not charged.</p>
-              : <Alert tone="warn">{a.displayName} is {a.isBusy ? 'in another session' : 'offline'} right now. Pick a time slot instead.</Alert>)}
-            {type === 'scheduled' && (slotsByDay.length === 0 ? <p className="muted">No open slots in the next 14 days.</p> : slotsByDay.map(([day, slots]) => (
+              ? <p className="small muted">{t('book.onlineNote', { name: a.displayName })}</p>
+              : <Alert tone="warn">{t(a.isBusy ? 'book.busy' : 'book.offline', { name: a.displayName })}</Alert>)}
+            {type === 'scheduled' && (slotsByDay.length === 0 ? <p className="muted">{t('book.noSlots')}</p> : slotsByDay.map(([day, slots]) => (
               <div key={day}>
                 <div className="field-label">{day}</div>
                 <div className="slot-grid">{slots.map((s) => (
@@ -79,40 +80,40 @@ export default function Book() {
             )))}
           </div>
         </Card>
-        <Card title="2. Duration">
+        <Card title={`2. ${t('book.duration')}`}>
           <div className="chips">{DURATIONS.filter((d) => d <= maxDuration).map((d) => (
-            <button key={d} className={`chip ${duration === d ? 'active' : ''}`} onClick={() => setDuration(d)}>{d} min</button>
+            <button key={d} className={`chip ${duration === d ? 'active' : ''}`} onClick={() => setDuration(d)}>{t('common.min', { n: d })}</button>
           ))}</div>
-          <p className="small muted mt">You're charged only for minutes used (per started minute), up to this limit. The session ends automatically at the limit.</p>
+          <p className="small muted mt">{t('book.durationNote')}</p>
         </Card>
-        <Card title="3. Whose chart?">
+        <Card title={`3. ${t('book.whose')}`}>
           {profiles.data.length === 0 ? (
-            <Alert tone="warn"><span>Add birth details so the astrologer can see the chart.</span><Link className="btn btn-primary btn-sm" to="/profile?add=1">Add birth details</Link></Alert>
+            <Alert tone="warn"><span>{t('book.addBirthNote')}</span><Link className="btn btn-primary btn-sm" to="/profile?add=1">{t('home.addBirth')}</Link></Alert>
           ) : (
             <div className="stack-s">
               {profiles.data.map((p) => (
                 <label key={p.birthProfileId} className="check">
                   <input type="radio" name="bp" checked={bp === p.birthProfileId} onChange={() => setBirthProfileId(p.birthProfileId)} />
-                  <span><strong>{p.fullName}</strong> <span className="muted small">({p.label}) · {p.birthDate} {p.birthTime?.slice(0, 5) || 'time unknown'} · {p.placeName}</span>
-                    {p.latestChart?.status === 'stale' && <Badge tone="warn">Chart outdated</Badge>}</span>
+                  <span><strong>{p.fullName}</strong> <span className="muted small">({p.label}) · {p.birthDate} {p.birthTime?.slice(0, 5) || t('match.timeUnknown')} · {p.placeName}</span>
+                    {p.latestChart?.status === 'stale' && <Badge tone="warn">{t('book.chartOutdated')}</Badge>}</span>
                 </label>
               ))}
-              <p className="tiny muted">Only the astrologer you book can view this chart, and only during the consultation. Access is logged.</p>
+              <p className="tiny muted">{t('book.chartPrivacy')}</p>
             </div>
           )}
-          <label className="field mt"><span className="field-label">What would you like to discuss? (optional)</span>
-            <textarea rows={2} value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={300} placeholder="e.g. Career change timing" /></label>
+          <label className="field mt"><span className="field-label">{t('book.topic')}</span>
+            <textarea rows={2} value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={300} placeholder={t('book.topicPh')} /></label>
         </Card>
       </div>
-      <Card title="Summary" className="sticky">
+      <Card title={t('book.summary')} className="sticky">
         <div className="stack">
-          <div className="row"><Avatar name={a.displayName} /><div><strong>{a.displayName}</strong><div className="small muted">Chat consultation</div></div></div>
+          <div className="row"><Avatar name={a.displayName} /><div><strong>{a.displayName}</strong><div className="small muted">{t('book.chatConsult')}</div></div></div>
           {quote.data && (
             <div className="summary-box kv">
-              <dt>Rate</dt><dd>{rupees(quote.data.ratePaise)}/min</dd>
-              <dt>Duration</dt><dd>up to {duration} min</dd>
-              <dt>When</dt><dd>{type === 'instant' ? 'Now' : slot ? new Date(slot.startAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</dd>
-              <dt><strong>Authorize</strong></dt><dd><strong>{rupees(quote.data.amountPaise)}</strong></dd>
+              <dt>{t('book.rate')}</dt><dd>{rupees(quote.data.ratePaise)}/min</dd>
+              <dt>{t('book.duration')}</dt><dd>{t('common.upTo', { n: duration })}</dd>
+              <dt>{t('book.when')}</dt><dd>{type === 'instant' ? t('book.nowShort') : slot ? new Date(slot.startAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</dd>
+              <dt><strong>{t('book.authorize')}</strong></dt><dd><strong>{rupees(quote.data.amountPaise)}</strong></dd>
             </div>
           )}
           {quote.data && (
@@ -121,10 +122,10 @@ export default function Book() {
               <div className="notice-body">{quote.data.cancellationPolicy.body}</div>
             </details>
           )}
-          <label className="check small"><input type="checkbox" checked={policyOk} onChange={(e) => setPolicyOk(e.target.checked)} /> I have reviewed the price and the cancellation & refund policy.</label>
+          <label className="check small"><input type="checkbox" checked={policyOk} onChange={(e) => setPolicyOk(e.target.checked)} /> {t('book.policyOk')}</label>
           <ErrorBox error={error} />
-          <Button size="lg" className="btn-block" disabled={!ready} loading={busy} onClick={confirm}>Continue to payment</Button>
-          <p className="tiny muted">Payments are processed by our payment gateway. We never see or store your card details.</p>
+          <Button size="lg" className="btn-block" disabled={!ready} loading={busy} onClick={confirm}>{t('book.continue')}</Button>
+          <p className="tiny muted">{t('book.gateway')}</p>
         </div>
       </Card>
     </div>

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useAuth, useAsync, Card, Button, Badge, Tabs, Modal, Spinner, ErrorBox, Field, Empty, rupees, fmtDateTime, titleCase, useToast } from '@astro/shared';
+import { useT, useAuth, useAsync, Card, Button, Badge, Tabs, Modal, Spinner, ErrorBox, Field, Empty, rupees, fmtDateTime, titleCase, useToast } from '@astro/shared';
 
 export default function Astrologers() {
+  const t = useT();
   const { api, can } = useAuth();
   const [tab, setTab] = useState('submitted');
   const list = useAsync(() => api.get(`/admin/astrologers${tab === 'all' ? '' : `?status=${tab}`}`), [tab]);
@@ -9,7 +10,7 @@ export default function Astrologers() {
   const [toast, showToast] = useToast();
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Astrologers</h1><p>Verify, approve, suspend and moderate astrologer profiles. Only approved astrologers are bookable.</p></div></div>
+      <div className="page-head"><div><h1>{t('page.astrologers.title')}</h1><p>{t('page.astrologers.sub')}</p></div></div>
       <Tabs value={tab} onChange={setTab} tabs={['submitted', 'approved', 'rejected', 'suspended', 'draft', 'all'].map((v) => ({ value: v, label: v === 'submitted' ? 'Awaiting review' : titleCase(v) }))} />
       <ErrorBox error={list.error} />
       {list.loading ? <Spinner /> : !list.data.length ? <Empty title="No astrologers in this state" /> : (

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useAuth, useAsync, Card, Button, Badge, Modal, Spinner, Field, ErrorBox, rupees, fmtDateTime, titleCase, useToast } from '@astro/shared';
+import { useT, useAuth, useAsync, Card, Button, Badge, Modal, Spinner, Field, ErrorBox, rupees, fmtDateTime, titleCase, useToast } from '@astro/shared';
 
 export default function Customers() {
+  const t = useT();
   const { api, can } = useAuth();
   const [q, setQ] = useState('');
   const list = useAsync(() => api.get(`/admin/customers?q=${encodeURIComponent(q)}`), [q]);
@@ -9,7 +10,7 @@ export default function Customers() {
   const [toast, showToast] = useToast();
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Customers</h1><p>Account lookup, status and support history. Birth details are not shown here.</p></div>
+      <div className="page-head"><div><h1>{t('page.customers.title')}</h1><p>{t('page.customers.sub')}</p></div>
         <input style={{ maxWidth: 300 }} placeholder="Search name, phone, email" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       {list.loading ? <Spinner /> : (
         <Card pad={false}><div className="table-wrap"><table className="table">

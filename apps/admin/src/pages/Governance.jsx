@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useAuth, useAsync, Card, Button, Badge, Spinner, Field, ErrorBox, fmtDateTime, titleCase, useToast } from '@astro/shared';
+import { useT, useAuth, useAsync, Card, Button, Badge, Spinner, Field, ErrorBox, fmtDateTime, titleCase, useToast } from '@astro/shared';
 
 export function Admins() {
+  const t = useT();
   const { api, me } = useAuth();
   const d = useAsync(() => api.get('/admin/admins'), []);
   const [f, setF] = useState({ email: '', displayName: '', adminRole: 'support' });
@@ -12,7 +13,7 @@ export function Admins() {
   if (d.loading) return <Spinner />;
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Admin users & roles</h1><p>Least-privilege roles. Every permission change is audited.</p></div></div>
+      <div className="page-head"><div><h1>{t('page.admins.title')}</h1><p>{t('page.admins.sub')}</p></div></div>
       <Card title="Add admin">
         <form onSubmit={add} className="stack"><ErrorBox error={err} />
           <div className="form-grid">
@@ -36,13 +37,14 @@ export function Admins() {
 }
 
 export function Audit() {
+  const t = useT();
   const { api } = useAuth();
   const [f, setF] = useState({ action: '', targetId: '', outcome: '' });
   const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v)).toString();
   const list = useAsync(() => api.get(`/admin/audit?${qs}&limit=200`), [qs]);
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Audit log</h1><p>Chart/profile access, admin actions, refunds, payouts and permission changes.</p></div></div>
+      <div className="page-head"><div><h1>{t('page.audit.title')}</h1><p>{t('page.audit.sub')}</p></div></div>
       <div className="form-grid">
         <input placeholder="Action contains (e.g. chart, refund)" value={f.action} onChange={(e) => setF({ ...f, action: e.target.value })} />
         <input placeholder="Target ID" value={f.targetId} onChange={(e) => setF({ ...f, targetId: e.target.value })} />
@@ -58,12 +60,13 @@ export function Audit() {
 }
 
 export function Consents() {
+  const t = useT();
   const { api } = useAuth();
   const [type, setType] = useState('');
   const list = useAsync(() => api.get(`/admin/consents?noticeType=${type}`), [type]);
   return (
     <div className="stack">
-      <div className="page-head"><div><h1>Consent records</h1><p>Notice version, acceptance timestamp and context for every acceptance.</p></div>
+      <div className="page-head"><div><h1>{t('page.consents.title')}</h1><p>{t('page.consents.sub')}</p></div>
         <select style={{ width: 240 }} value={type} onChange={(e) => setType(e.target.value)}><option value="">All notices</option>{['terms', 'privacy', 'astrology_disclaimer', 'cancellation_policy', 'astrologer_agreement'].map((t) => <option key={t} value={t}>{titleCase(t)}</option>)}</select></div>
       <Card pad={false}>{list.loading ? <Spinner /> : <div className="table-wrap"><table className="table compact">
         <thead><tr><th>Accepted</th><th>User</th><th>Role</th><th>Notice</th><th>Version</th><th>Context</th><th>IP</th></tr></thead>
